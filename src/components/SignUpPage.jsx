@@ -1,56 +1,51 @@
 import React, { useState } from "react";
 import Logo from "./Logo.png";
 
-export default function LoginPage({ onLogin, onBack }) {
+export default function SignUpPage({ onSignUp, onBack }) {
   const [email, setEmail] = useState("");
+  const [fullname, setFullname] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const handleLogin = (e) => {
+  const handleSignUp = (e) => {
     e.preventDefault();
+    if (!email || !fullname || !password) {
+      setError("Please fill all the fields.");
+      return;
+    }
     
-    if (!email || !password) {
-      setError("Please enter both email and password.");
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long.");
       return;
     }
 
-    // Get stored users from session storage
+    setError("");
+
+    // Get existing users from session storage
     const usersData = sessionStorage.getItem("users");
     const users = usersData ? JSON.parse(usersData) : [];
     
-    // Find user with matching email and password
-    const user = users.find(u => u.email === email && u.password === password);
-    
-    if (user) {
-      // Store current logged-in user
-      sessionStorage.setItem("currentUser", JSON.stringify(user));
-      // Persist user to registeredUsers so admin can see them later
-      try {
-        const regKey = 'registeredUsers';
-        // prefer localStorage for persistence across browser sessions
-        const stored = localStorage.getItem(regKey) || sessionStorage.getItem(regKey);
-        const regUsers = stored ? JSON.parse(stored) : [];
-        const exists = regUsers.some(u => u.email === user.email);
-        if (!exists) {
-          const newUser = {
-            name: user.name || user.email.split('@')[0],
-            role: user.role || 'Investor',
-            email: user.email,
-            registeredOn: new Date().toISOString().slice(0,10),
-            status: 'Active'
-          };
-          regUsers.push(newUser);
-          // write to localStorage for persistent admin visibility
-          localStorage.setItem(regKey, JSON.stringify(regUsers));
-        }
-      } catch (err) {
-        // non-fatal: ignore storage errors
-        console.warn('Could not persist registered user', err);
-      }
-      onLogin && onLogin(email);
-    } else {
-      setError("Invalid email or password. Please try again.");
+    // Check if user already exists
+    const existingUser = users.find(u => u.email === email);
+    if (existingUser) {
+      setError("User with this email already exists.");
+      return;
     }
+
+    // Add new user
+    const newUser = { email, fullname, password };
+    users.push(newUser);
+    sessionStorage.setItem("users", JSON.stringify(users));
+    
+    setSuccess("Account created successfully! Redirecting to login...");
+    setError("");
+    
+    // Auto-login after 1.5 seconds
+    setTimeout(() => {
+      sessionStorage.setItem("currentUser", JSON.stringify(newUser));
+      onSignUp && onSignUp(email);
+    }, 1500);
   };
 
   return (
@@ -100,27 +95,32 @@ export default function LoginPage({ onLogin, onBack }) {
             marginBottom: 8,
           }}
         >
-          Welcome Back!
+          Sign Up
         </h2>
-        <div style={{ marginBottom: 18, color: "#444", fontSize: 16 }}>
-          Please sign in with your email and password
-        </div>
-        <form onSubmit={handleLogin}>
+        <form onSubmit={handleSignUp}>
           <input
-            type="email"
-            placeholder="Enter your email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="text"
+            placeholder="Full Name"
+            value={fullname}
+            onChange={(e) => setFullname(e.target.value)}
             style={inputStyle}
             autoFocus
           />
           <input
+            type="email"
+            placeholder="Email Address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={inputStyle}
+          />
+          <input
             type="password"
-            placeholder="Enter your password"
+            placeholder="Password (min 6 characters)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             style={inputStyle}
           />
+
           <button
             type="submit"
             style={{
@@ -136,14 +136,22 @@ export default function LoginPage({ onLogin, onBack }) {
               boxShadow: "0 2px 6px #0077cc1a",
             }}
           >
-            Login
+            Sign Up
           </button>
         </form>
-        {error && (
-          <div style={{ marginTop: 15, color: "#d12c2c", fontSize: 14 }}>
-            {error}
+
+        {(error || success) && (
+          <div
+            style={{
+              marginTop: 15,
+              color: error ? "#d12c2c" : "#058c44",
+              fontSize: 14,
+            }}
+          >
+            {error || success}
           </div>
         )}
+
         <button
           style={{
             background: "none",
@@ -174,3 +182,4 @@ const inputStyle = {
   outline: "none",
   background: "#f5fbff",
 };
+

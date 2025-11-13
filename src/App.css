@@ -40,3 +40,95 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Mutual Fund Platform theme & layout */
+:root{
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --primary: #0077cc;
+  --sidebar-bg: #f8fafc;
+}
+
+.mf-app {
+  display: flex;
+  min-height: 80vh;
+  gap: 24px;
+  padding: 18px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.mf-sidebar{
+  width: 220px;
+  background: var(--sidebar-bg);
+  border-radius: 12px;
+  padding: 18px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  box-shadow: 0 6px 22px rgba(2,6,23,0.06);
+}
+.mf-logo{
+  background: linear-gradient(135deg,var(--primary),#004a8f);
+  color: white;
+  width:56px;
+  height:56px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:10px;
+  font-weight:700;
+  font-size:18px;
+}
+.mf-app-title{
+  margin:8px 0 0 0;
+  font-size:18px;
+}
+.mf-nav{
+  margin-top:18px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.mf-nav-item{
+  background:transparent;
+  border:none;
+  text-align:left;
+  padding:10px 12px;
+  border-radius:8px;
+  color:var(--text);
+  cursor:pointer;
+}
+.mf-nav-item:hover{background:rgba(0,0,0,0.04)}
+
+.mf-sidebar-bottom{display:flex;align-items:center;gap:12px}
+.mf-theme-toggle{display:flex;align-items:center;gap:10px}
+.mf-toggle-label{font-size:13px;color:var(--muted)}
+.mf-toggle-btn{width:46px;height:26px;border-radius:16px;border:none;background:#cbd5e1;position:relative;padding:2px;cursor:pointer}
+.mf-toggle-btn.on{background:linear-gradient(90deg,var(--primary),#004a8f)}
+.mf-toggle-knob{width:20px;height:20px;background:white;border-radius:50%;display:block;box-shadow:0 1px 4px rgba(0,0,0,0.15);transform:translateX(1px);transition:transform .18s ease}
+.mf-toggle-btn.on .mf-toggle-knob{transform:translateX(20px)}
+
+.mf-main{flex:1}
+
+/* Dark theme overrides similar to Zerodha's dark sidebar feel */
+.mf-app.dark{
+  --bg:#0b1220;
+  --panel:#0f1724;
+  --text:#e6eef8;
+  --muted:#9aa6b2;
+  --primary:#4da3ff;
+  --sidebar-bg:#071028;
+}
+.mf-app.dark .mf-sidebar{box-shadow:none}
+.mf-app.dark .mf-nav-item:hover{background:rgba(255,255,255,0.03)}
+
+/* Responsive adjustments */
+@media (max-width:900px){
+  .mf-app{flex-direction:column;padding:12px}
+  .mf-sidebar{width:100%;flex-direction:row;align-items:center;padding:10px}
+  .mf-nav{flex-direction:row;gap:6px;margin-top:0}
+  .mf-main{width:100%}
+}

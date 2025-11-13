@@ -1,115 +1,128 @@
-import React, { useState } from 'react';
+import React from "react";
 
-const articles = [
+const advisorData = [
   {
     id: 1,
-    title: 'Mutual Fund Risks Explained',
-    content: (
-      <>
-        <b>Key risks every investor should know:</b>
-        <ul style={{ marginTop: 12 }}>
-          <li><b>Market Risk:</b> The value of fund holdings can fluctuate due to overall market movements or economic changes. Equity funds are most exposed to this.</li>
-          <li><b>Interest Rate Risk:</b> Changes in interest rates impact bond prices in debt funds. When rates go up, bond prices — and debt fund NAVs — usually fall.</li>
-          <li><b>Credit Risk:</b> If the companies/institutions in a debt fund default on payments, the fund loses value. Check past defaults and credit ratings.</li>
-          <li><b>Liquidity Risk:</b> In volatile markets, redeeming your fund units might not be immediately possible at the desirable price.</li>
-          <li><b>Inflation Risk:</b> If your fund’s returns don’t beat inflation, your purchasing power is reduced in real terms.</li>
-        </ul>
-        <p>
-          <span style={{ fontWeight: 500, color: "#0077cc" }}>
-            Tip: Diversifying your mutual funds and matching your choices with your risk appetite helps balance rewards and risks.
-          </span>
-        </p>
-      </>
-    ),
+    name: "Nirav Mehta",
+    role: "Certified Mutual Fund Advisor",
+    avatar: "https://randomuser.me/api/portraits/men/32.jpg",
+    experience: "8 years",
+    rating: 4.8,
+    expertise: "Equity & Index Funds",
+    clients: 150,
   },
   {
     id: 2,
-    title: 'Selecting the Right Fund',
-    content: (
-      <>
-        <b>Steps to choose your best-fit mutual fund:</b>
-        <ul style={{ marginTop: 12 }}>
-          <li><b>Define Goals:</b> Are you investing for retirement, buying a home, or a child’s education? Match fund types to goal duration.</li>
-          <li><b>Assess Risk Tolerance:</b> If you prefer safety, look for debt or balanced funds. Comfortable with ups and downs? Equity funds may be better long-term performers.</li>
-          <li><b>Check Investment Horizon:</b> Short-term goals fit liquid/ultra-short funds. For long-term (5+ years), equity mutual funds have higher growth potential.</li>
-          <li><b>Examine Fund Performance:</b> Past performance isn’t a guarantee, but it helps review how funds weathered different markets. Compare with benchmark and peers.</li>
-          <li><b>Expense Ratio:</b> Lower expense ratios equal better net returns over time. Always check this number when comparing funds.</li>
-        </ul>
-        <p>
-          <span style={{ fontWeight: 500, color: "#0077cc" }}>
-            Tip: Read the "riskometer" and scheme details in the fund fact sheet.
-          </span>
-        </p>
-      </>
-    ),
+    name: "Pooja Sharma",
+    role: "Financial Planner",
+    avatar: "https://randomuser.me/api/portraits/women/65.jpg",
+    experience: "6 years",
+    rating: 4.7,
+    expertise: "Debt & Hybrid Funds",
+    clients: 110,
   },
-  {
-    id: 3,
-    title: 'Beginner Investment Strategies',
-    content: (
-      <>
-        <b>Simple strategies for beginners:</b>
-        <ul style={{ marginTop: 12 }}>
-          <li><b>Start with SIPs:</b> Systematic Investment Plans (SIP) let you invest small amounts regularly. This builds discipline and leverages rupee cost averaging.</li>
-          <li><b>Diversify Your Portfolio:</b> Don’t put all your money in one fund type. Mix equity, debt, and hybrid funds for balanced growth and safety.</li>
-          <li><b>Avoid Chasing Past Performance:</b> Just because a fund performed well last year doesn’t guarantee future success. Research consistency, not just top returns.</li>
-          <li><b>Keep Costs Low:</b> Prefer funds with lower expense ratios to maximize real returns.</li>
-          <li><b>Review and Rebalance:</b> Track your portfolio’s progress. Adjust if a fund consistently underperforms or if your financial goals change.</li>
-        </ul>
-        <p>
-          <span style={{ fontWeight: 500, color: "#0077cc" }}>
-            Tip: Stay invested for at least 5+ years to benefit from compounding and ignore short-term market noise.
-          </span>
-        </p>
-      </>
-    ),
-  },
+  // Add more advisors as needed
 ];
 
-function AdvisorSection() {
-  const [selectedArticle, setSelectedArticle] = useState(articles[0]);
-
+export default function AdvisorSection() {
   return (
-    <div>
-      <h2 style={{ color: '#004687' }}>Financial Advisor Section</h2>
-      <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap', marginTop: '16px' }}>
-        <div style={{
-          flex: '1 1 230px',
-          padding: '16px',
-          border: '1px solid #0077cc',
-          borderRadius: '10px',
-          background: '#f9fbff',
-          maxHeight: '320px',
-          overflowY: 'auto'
+    <div style={sectionBackdrop}>
+      <div style={sectionHeader}>
+        <h1 style={{
+          color: "#005aff",
+          fontWeight: 900,
+          letterSpacing: 1.2,
+          fontSize: 33,
+          margin: 0
         }}>
-          {articles.map(article => (
-            <div
-              key={article.id}
-              style={{
-                marginBottom: '18px',
-                cursor: 'pointer',
-                color: selectedArticle?.id === article.id ? '#0077cc' : '#004687'
-              }}
-              onClick={() => setSelectedArticle(article)}
-            >
-              <h4 style={{ margin: 0 }}>{article.title}</h4>
+          Advisor Zone
+        </h1>
+        <div style={{
+          fontSize: 18,
+          color: "#333",
+          marginTop: 7,
+        }}>
+          Your trusted advisory panel—get personalized recommendations from certified experts.
+        </div>
+      </div>
+      <div style={advisorListWrapper}>
+        {advisorData.map(advisor => (
+          <div key={advisor.id} style={advisorCard}>
+            <img src={advisor.avatar} alt={advisor.name} style={{
+              width: 66, height: 66, borderRadius: "50%", marginBottom: 16, boxShadow: "0 2px 10px #b0cff833"
+            }} />
+            <div style={{ fontSize: 19, fontWeight: 700, color: "#232d3d" }}>{advisor.name}</div>
+            <div style={{ fontSize: 14, margin: "3px 0 10px 0", color: "#2a7abe" }}>{advisor.role}</div>
+            <div style={{ fontSize: 15, color: "#444", marginBottom: 8 }}>
+              <strong>Experience:</strong> {advisor.experience}
             </div>
-          ))}
-        </div>
-        <div style={{
-          flex: '2 1 400px',
-          border: '1px solid #0077cc',
-          borderRadius: '10px',
-          padding: '20px',
-          backgroundColor: 'white',
-          boxShadow: '0 0 10px rgba(0,119,204,0.12)'
-        }}>
-          <h3>{selectedArticle.title}</h3>
-          <div>{selectedArticle.content}</div>
-        </div>
+            <div style={{ fontSize: 15, color: "#444", marginBottom: 8 }}>
+              <strong>Expertise:</strong> {advisor.expertise}
+            </div>
+            <div style={{
+              display: "flex", justifyContent: "center", alignItems: "center", gap: 10
+            }}>
+              <span style={{
+                background: "#edf6ff", color: "#0077cc", borderRadius: 8, padding: "2px 12px", fontWeight: 600, fontSize: 14
+              }}>
+                {advisor.rating} ★
+              </span>
+              <span style={{
+                background: "#f2f2f2", color: "#2c2c2c", borderRadius: 8, padding: "2px 12px", fontWeight: 500, fontSize: 14
+              }}>
+                {advisor.clients} Clients
+              </span>
+            </div>
+            <button style={bookBtn}>Book a Session</button>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-export default AdvisorSection;
+const sectionBackdrop = {
+  minHeight: "100vh",
+  padding: "38px 0",
+  background: "linear-gradient(130deg,#fafdff 70%,#e4f3ff 100%)"
+};
+
+const sectionHeader = {
+  maxWidth: 670,
+  margin: "0 auto 34px auto",
+  textAlign: "center",
+  padding: "28px 0 5px 0"
+};
+
+const advisorListWrapper = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 30,
+  justifyContent: "center"
+};
+
+const advisorCard = {
+  background: "#fff",
+  borderRadius: 15,
+  boxShadow: "0 4px 18px #87bfff18",
+  padding: "34px 35px 23px 35px",
+  minWidth: 285,
+  maxWidth: 295,
+  margin: "10px 3vw",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center"
+};
+
+const bookBtn = {
+  marginTop: 16,
+  background: "#0077cc",
+  color: "white",
+  border: "none",
+  borderRadius: 7,
+  padding: "10px 27px",
+  fontSize: 17,
+  fontWeight: 700,
+  cursor: "pointer",
+  boxShadow: "0 2px 8px #0077cc18"
+};
