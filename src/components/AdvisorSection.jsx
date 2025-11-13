@@ -28,8 +28,7 @@ export default function AdvisorSection() {
   return (
     <div style={sectionBackdrop}>
       <div style={sectionHeader}>
-        <h1 style={{
-          color: "#005aff",
+        <h1 className="advisor-zone-title" style={{
           fontWeight: 900,
           letterSpacing: 1.2,
           fontSize: 33,

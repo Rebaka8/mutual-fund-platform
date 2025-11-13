@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import Logo from "./Logo.png";
 
-// User role check utility function (same as in App.jsx, you can import if centralized)
+// User role check utility function (fixed stray syntax error)
 function getUserRole(email) {
   if (!email) return "investor";
   if (email === "rebakameda@gmail.com") return "admin";
@@ -12,20 +12,18 @@ function getUserRole(email) {
 }
 
 export default function AdminPanel({ currentUser }) {
-  // try to resolve currentUser email from prop or sessionStorage
   const storedCurrent = typeof window !== 'undefined' ? sessionStorage.getItem('currentUser') : null;
   const parsedStored = storedCurrent ? JSON.parse(storedCurrent) : null;
   const currentEmail = typeof currentUser === 'string'
     ? currentUser
     : (currentUser && currentUser.email) || (parsedStored && parsedStored.email) || null;
 
-  // If not admin, redirect out
   const userRole = getUserRole(currentEmail);
   if (userRole !== "admin") {
     return <Navigate to={`/${userRole}`} />;
   }
 
-  // Default demo users (used only if no stored users found)
+  // Demo users
   const defaultUsers = [
     { name: "Rebaka Meda", role: "Admin", email: "rebakameda@gmail.com", registeredOn: "2023-02-14", status: "Active" },
     { name: "Asha Rao", role: "Investor", email: "asha.rao@example.com", registeredOn: "2024-06-15", status: "Active" },
@@ -36,7 +34,6 @@ export default function AdminPanel({ currentUser }) {
 
   const [users, setUsers] = useState(() => {
     try {
-      // prefer localStorage for persistent registered users
       const stored = localStorage.getItem('registeredUsers') || sessionStorage.getItem('registeredUsers');
       return stored ? JSON.parse(stored) : defaultUsers;
     } catch (e) {
@@ -47,9 +44,7 @@ export default function AdminPanel({ currentUser }) {
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedInvestments, setSelectedInvestments] = useState([]);
 
-  // ensure there is a stored list for persistence across reloads
   useEffect(() => {
-    // ensure a persisted list exists (prefer localStorage)
     if (!localStorage.getItem('registeredUsers') && !sessionStorage.getItem('registeredUsers')) {
       localStorage.setItem('registeredUsers', JSON.stringify(defaultUsers));
     }
@@ -68,118 +63,160 @@ export default function AdminPanel({ currentUser }) {
   };
 
   const toggleStatus = (email) => {
-    const updated = users.map(u => {
-      if (u.email === email) {
-        return { ...u, status: u.status === 'Active' ? 'Inactive' : 'Active' };
-      }
-      return u;
-    });
+    const updated = users.map(u => (u.email === email ? { ...u, status: u.status === 'Active' ? 'Inactive' : 'Active' } : u));
     setUsers(updated);
     sessionStorage.setItem('registeredUsers', JSON.stringify(updated));
   };
 
+  // Simple market watch data (placeholder)
+  const marketWatch = [
+    { symbol: 'NIFTY', price: 23100.45, change: 0.72 },
+    { symbol: 'SENSEX', price: 76532.12, change: -0.21 },
+    { symbol: 'INFY', price: 1820.5, change: 1.12 },
+    { symbol: 'HDFC', price: 3052.1, change: -0.45 }
+  ];
+
   return (
-    <div style={{ padding: "30px 0", maxWidth: 1100, margin: "0 auto" }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", marginBottom: 18 }}>
-        <img src={Logo} alt="Logo" style={{ width: 46, height: 46, borderRadius: 8, marginRight: 14, objectFit: 'contain' }} />
-        <div>
-          <h1 style={{ color: '#0077cc', fontSize: '2rem', margin: 0 }}>Admin Panel</h1>
-          <div style={{ color: '#666', marginTop: 4 }}>Signed in as: <strong>{currentEmail || 'Unknown'}</strong></div>
+    <div style={{ display: 'flex', height: '100vh', fontFamily: 'Inter, system-ui, Arial', background: '#f4f7fb' }}>
+      {/* Sidebar */}
+      <aside style={{ width: 240, background: '#07122b', color: 'white', padding: 20, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+          <img src={Logo} alt="logo" style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'contain', background: 'white' }} />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 18 }}>Mutual Fund</div>
+            <div style={{ opacity: 0.8, fontSize: 12 }}>Admin Console</div>
+          </div>
         </div>
-      </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: 18 }}>
-        <div>
-          <div style={{ marginBottom: 12, color: '#444', fontSize: 16 }}>Registered users (click a row to view investments)</div>
-          <div style={{ borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 16px #0077cc0f', background: '#fff' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 15 }}>
-              <thead>
-                <tr style={{ background: '#0077cc', color: 'white' }}>
-                  <th style={thStyle}>Name</th>
-                  <th style={thStyle}>Role</th>
-                  <th style={thStyle}>Email</th>
-                  <th style={thStyle}>Registered On</th>
-                  <th style={thStyle}>Status</th>
-                  <th style={thStyle}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map(u => (
-                  <tr key={u.email} onClick={() => viewInvestments(u)} style={{ cursor: 'pointer', background: u.status === 'Inactive' ? '#fff5f5' : 'white' }}>
-                    <td style={tdStyle}>{u.name}</td>
-                    <td style={tdStyle}>{u.role}</td>
-                    <td style={tdStyle}>{u.email}</td>
-                    <td style={tdStyle}>{u.registeredOn}</td>
-                    <td style={{ ...tdStyle, color: u.status === 'Active' ? '#058c44' : '#d12c2c', fontWeight: 700 }}>{u.status}</td>
-                    <td style={tdStyle}>
-                      <button onClick={(e) => { e.stopPropagation(); toggleStatus(u.email); }} style={{ background: u.status === 'Inactive' ? '#0077cc' : '#d12c2c', color: 'white', border: 'none', borderRadius: 7, padding: '6px 12px', fontWeight: 600, cursor: 'pointer' }}>{u.status === 'Inactive' ? 'Activate' : 'Deactivate'}</button>
-                    </td>
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {['Dashboard', 'Orders', 'Funds', 'Users', 'Reports', 'Settings'].map((item) => (
+            <div key={item} style={{ padding: '10px 12px', borderRadius: 8, cursor: 'pointer', color: '#cfe6ff' }}>
+              {item}
+            </div>
+          ))}
+        </nav>
+
+        <div style={{ marginTop: 'auto', fontSize: 13, opacity: 0.85 }}>
+          <div style={{ marginBottom: 6 }}>Signed in as</div>
+          <div style={{ fontWeight: 700 }}>{currentEmail || 'admin@demo'}</div>
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <main style={{ flex: 1, padding: 20, overflow: 'auto' }}>
+        {/* Topbar */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <h2 style={{ margin: 0, color: '#07122b' }}>Dashboard</h2>
+            <div style={{ color: '#657786' }}>Overview of platform performance</div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <input placeholder="Search users, funds or orders" style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #e6eef8', minWidth: 320 }} />
+            <button style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>🔔</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 10px', background: '#fff', borderRadius: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#e7f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>RM</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
+          <div style={{ background: 'linear-gradient(90deg,#0b6bd6,#0b9bd6)', color: 'white', padding: 16, borderRadius: 10 }}>
+            <div style={{ fontSize: 12, opacity: 0.9 }}>Portfolio Value</div>
+            <div style={{ fontSize: 22, fontWeight: 800, marginTop: 8 }}>₹ 12,34,567</div>
+            <div style={{ marginTop: 6, opacity: 0.9 }}>AUM across investors</div>
+          </div>
+
+          <div style={{ background: '#fff', padding: 16, borderRadius: 10 }}>
+            <div style={{ fontSize: 12, color: '#657786' }}>Today</div>
+            <div style={{ fontSize: 20, fontWeight: 700, marginTop: 8 }}>+₹ 12,345</div>
+            <div style={{ marginTop: 6, color: '#9aa9b8' }}>Net inflows</div>
+          </div>
+
+          <div style={{ background: '#fff', padding: 16, borderRadius: 10 }}>
+            <div style={{ fontSize: 12, color: '#657786' }}>Funds</div>
+            <div style={{ fontSize: 20, fontWeight: 700, marginTop: 8 }}>128</div>
+            <div style={{ marginTop: 6, color: '#9aa9b8' }}>Active schemes</div>
+          </div>
+
+          <div style={{ background: '#fff', padding: 16, borderRadius: 10 }}>
+            <div style={{ fontSize: 12, color: '#657786' }}>New Signups</div>
+            <div style={{ fontSize: 20, fontWeight: 700, marginTop: 8 }}>54</div>
+            <div style={{ marginTop: 6, color: '#9aa9b8' }}>Last 7 days</div>
+          </div>
+        </div>
+
+        {/* Market watch */}
+        <div style={{ background: '#07122b', color: 'white', padding: 10, borderRadius: 8, marginBottom: 18, display: 'flex', gap: 14, alignItems: 'center' }}>
+          {marketWatch.map(m => (
+            <div key={m.symbol} style={{ minWidth: 120 }}>
+              <div style={{ fontSize: 12, opacity: 0.8 }}>{m.symbol}</div>
+              <div style={{ fontWeight: 700 }}>{m.price.toLocaleString()}</div>
+              <div style={{ fontSize: 12, color: m.change >= 0 ? '#00c48c' : '#ff6b6b' }}>{m.change >= 0 ? '+' : ''}{m.change}%</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Main grid: left = users/funds table, right = user details / charts */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16 }}>
+          <section>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <h3 style={{ margin: 0 }}>Users</h3>
+              <div style={{ color: '#657786' }}>Manage registered accounts</div>
+            </div>
+
+            <div style={{ background: '#fff', borderRadius: 10, padding: 12 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', color: '#657786', fontSize: 13 }}>
+                    <th style={{ padding: 10 }}>Name</th>
+                    <th style={{ padding: 10 }}>Role</th>
+                    <th style={{ padding: 10 }}>Status</th>
+                    <th style={{ padding: 10 }}>Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                </thead>
+                <tbody>
+                  {users.map(u => (
+                    <tr key={u.email} onClick={() => viewInvestments(u)} style={{ cursor: 'pointer', borderTop: '1px solid #f0f3f7' }}>
+                      <td style={{ padding: 12 }}>{u.name}</td>
+                      <td style={{ padding: 12 }}>{u.role}</td>
+                      <td style={{ padding: 12, color: u.status === 'Active' ? '#058c44' : '#d12c2c', fontWeight: 700 }}>{u.status}</td>
+                      <td style={{ padding: 12 }}>
+                        <button onClick={(e) => { e.stopPropagation(); toggleStatus(u.email); }} style={{ padding: '6px 10px', borderRadius: 8, border: 'none', background: u.status === 'Active' ? '#ffdede' : '#0b6bd6', color: u.status === 'Active' ? '#d12c2c' : 'white', cursor: 'pointer' }}>{u.status === 'Active' ? 'Deactivate' : 'Activate'}</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
 
-        <div>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 14, boxShadow: '0 2px 14px #0000000f' }}>
-            <h3 style={{ marginTop: 0, color: '#0077cc' }}>{selectedUser ? `${selectedUser.name} — Profile` : 'User details'}</h3>
-            {selectedUser ? (
-              <div>
-                <div style={{ marginBottom: 8 }}><strong>Email:</strong> {selectedUser.email}</div>
-                <div style={{ marginBottom: 8 }}><strong>Role:</strong> {selectedUser.role}</div>
-                <div style={{ marginBottom: 8 }}><strong>Registered:</strong> {selectedUser.registeredOn}</div>
-                <div style={{ marginBottom: 12 }}><strong>Status:</strong> <span style={{ color: selectedUser.status === 'Active' ? '#058c44' : '#d12c2c', fontWeight: 700 }}>{selectedUser.status}</span></div>
+          <aside>
+            <div style={{ background: '#fff', borderRadius: 10, padding: 14, marginBottom: 12 }}>
+              <h4 style={{ margin: 0, color: '#07122b' }}>{selectedUser ? `${selectedUser.name}` : 'User Details'}</h4>
+              {selectedUser ? (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ marginBottom: 6 }}><strong>Email:</strong> {selectedUser.email}</div>
+                  <div style={{ marginBottom: 6 }}><strong>Role:</strong> {selectedUser.role}</div>
+                  <div style={{ marginBottom: 6 }}><strong>Registered:</strong> {selectedUser.registeredOn}</div>
+                  <div style={{ marginBottom: 8 }}><strong>Status:</strong> <span style={{ color: selectedUser.status === 'Active' ? '#058c44' : '#d12c2c', fontWeight: 700 }}>{selectedUser.status}</span></div>
 
-                <h4 style={{ marginBottom: 8 }}>Investments</h4>
-                {selectedInvestments.length > 0 ? (
-                  <div style={{ maxHeight: 280, overflow: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr style={{ background: '#f7f9fb' }}>
-                          <th style={{ padding: '8px' }}>Fund</th>
-                          <th style={{ padding: '8px' }}>Amount</th>
-                          <th style={{ padding: '8px' }}>Date</th>
-                          <th style={{ padding: '8px' }}>Current NAV</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedInvestments.map(inv => (
-                          <tr key={inv.id} style={{ borderBottom: '1px solid #eee' }}>
-                            <td style={{ padding: '8px' }}>{inv.fundName}</td>
-                            <td style={{ padding: '8px' }}>₹{inv.amount.toFixed(2)}</td>
-                            <td style={{ padding: '8px' }}>{new Date(inv.investmentDate).toLocaleDateString()}</td>
-                            <td style={{ padding: '8px' }}>₹{inv.currentNAV ? inv.currentNAV.toFixed(2) : '—'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div style={{ color: '#666' }}>No investments found for this user.</div>
-                )}
-              </div>
-            ) : (
-              <div style={{ color: '#666' }}>Select a user from the table to see profile and investments.</div>
-            )}
-          </div>
+                  <div style={{ height: 120, borderRadius: 8, background: '#f6f9ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#657786' }}>Chart placeholder</div>
+                </div>
+              ) : (
+                <div style={{ marginTop: 10, color: '#657786' }}>Select a user to inspect investments and profile.</div>
+              )}
+            </div>
+
+            <div style={{ background: '#fff', borderRadius: 10, padding: 12 }}>
+              <h4 style={{ marginTop: 0 }}>Quick Actions</h4>
+              <button style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: 'none', background: '#0b6bd6', color: 'white', marginBottom: 8 }}>Create Fund</button>
+              <button style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e6eef8', background: 'white' }}>Export CSV</button>
+            </div>
+          </aside>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
-
-const thStyle = {
-  padding: "13px 8px",
-  fontWeight: 600,
-  fontSize: 18,
-  textAlign: "left"
-};
-
-const tdStyle = {
-  padding: "11px 8px",
-  fontWeight: 400,
-  fontSize: 17,
-  borderBottom: "1px solid #e7eaef"
-};

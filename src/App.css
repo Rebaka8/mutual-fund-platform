@@ -132,3 +132,8 @@
   .mf-nav{flex-direction:row;gap:6px;margin-top:0}
   .mf-main{width:100%}
 }
+
+/* Force Advisor Zone title color if inline or global rules conflict */
+.advisor-zone-title{
+  color: rgba(0,119,204,0.44) !important;
+}
