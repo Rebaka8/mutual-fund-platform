@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from "react";
 import SipCalculator from './sipCalculator';
-import { fetchNav, fetchNavBulk } from '../services/mfninjas';
-import { generateSyntheticNavHistory } from '../services/mfapi';
 import {
   LineChart,
   Line,
@@ -12,6 +10,34 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
+
+/**
+ * Local synthetic NAV history generator (replaces external API dependency)
+ * @param {Object} fund
+ * @param {number} days
+ * @returns {Array<{date:string,nav:number}>}
+ */
+function generateSyntheticNavHistory(fund, days = 250) {
+  if (!fund) return [];
+
+  const points = [];
+  const seed = Number((fund.schemeCode && String(fund.schemeCode).slice(-3)) || 100);
+  const base = 100 + (seed % 50);
+  const today = new Date();
+
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+
+    const nav = +(base * (1 + Math.sin(i / 12) * 0.02 + ((i - days / 2) / (days / 2)) * 0.02)).toFixed(2);
+    points.push({
+      date: d.toISOString().split('T')[0],
+      nav: Math.max(nav, 10),
+    });
+  }
+
+  return points;
+}
 
 const initialFundsToShow = [
   { schemeCode: "125497", schemeName: "SBI Bluechip Fund - Direct (Growth)", category: "Equity", return1yr: "12.80%" },
@@ -68,45 +94,7 @@ function InvestorDashboard() {
   const [fundsToShowState, setFundsToShowState] = useState(initialFundsToShow);
 
   useEffect(() => {
-    // Fetch real fund data from API to enrich UI
-    const loadLatestNavs = async () => {
-      try {
-        const codes = initialFundsToShow.map(f => f.schemeCode).filter(Boolean);
-        if (codes.length === 0) return;
-
-        console.log('📊 Fetching fund data from API...');
-        const results = await fetchNavBulk(codes);
-
-        const updated = initialFundsToShow.map((f, idx) => {
-          const apiData = results[idx];
-
-          // If API returned data, merge it with our initial data
-          if (apiData && !apiData.error) {
-            return {
-              ...f,
-              schemeName: apiData.schemeName || f.schemeName,
-              category: apiData.category || f.category,
-              latestNav: apiData.latestNav,
-              ticker: apiData.ticker,
-              holdings: apiData.holdings || [],
-              expenseRatio: apiData.expenseRatio,
-              aum: apiData.aum,
-              numHoldings: apiData.numHoldings,
-              return1yr: apiData.return1yr || f.return1yr,
-            };
-          }
-
-          // Keep original data if API failed
-          return f;
-        });
-
-        setFundsToShowState(updated);
-        console.log('✅ Fund data loaded successfully');
-      } catch (e) {
-        console.warn('⚠️ Failed to load fund data from API, using fallback data:', e.message);
-      }
-    };
-    loadLatestNavs();
+    // Removed external API fetch; keep bundled sample data only
   }, []);
   // Search UI state
   const [searchQuery, setSearchQuery] = useState("");
@@ -325,7 +313,7 @@ function InvestorDashboard() {
       console.log(`📈 Loading NAV data for ${fund.schemeName}...`);
 
       // Always use synthetic NAV history for chart visualization
-      // API doesn't provide historical NAV data, only current holdings
+      // Use local synthetic generator (no external API calls)
       const syntheticData = generateSyntheticNavHistory(fund, 250);
 
       // If fund has latestNav from API, adjust the synthetic data to end at that value
