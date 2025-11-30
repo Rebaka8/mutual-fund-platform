@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import SipCalculator from './sipCalculator';
-import { fetchNav } from '../services/mfninjas';
+import { fetchNav, fetchNavBulk } from '../services/mfninjas';
+import { generateSyntheticNavHistory } from '../services/mfapi';
 import {
   LineChart,
   Line,
@@ -67,35 +68,42 @@ function InvestorDashboard() {
   const [fundsToShowState, setFundsToShowState] = useState(initialFundsToShow);
 
   useEffect(() => {
-    // attempt to fetch latest NAV for each fund to enrich UI (non-blocking)
+    // Fetch real fund data from API to enrich UI
     const loadLatestNavs = async () => {
       try {
         const codes = initialFundsToShow.map(f => f.schemeCode).filter(Boolean);
         if (codes.length === 0) return;
-        // Use fetchNavBulk if available (returns array of responses or errors)
-        if (typeof fetchNav === 'function') {
-          const results = await Promise.all(codes.map(code => fetchNav(code).catch(e => ({ error: String(e) }))));
-          const updated = initialFundsToShow.map((f, idx) => {
-            const res = results[idx];
-            let latestNav = null;
-            try {
-              if (res) {
-                if (Array.isArray(res) && res.length) {
-                  // choose last element or object containing nav
-                  const s = res[res.length - 1];
-                  latestNav = Number(s.nav || s.value || s.price || s.latest_nav || 0) || null;
-                } else if (res.latest_nav || res.nav) {
-                  latestNav = Number(res.latest_nav || res.nav || res.value || 0) || null;
-                }
-              }
-            } catch (e) { latestNav = null; }
-            return Object.assign({}, f, latestNav ? { latestNav } : {});
-          });
-          setFundsToShowState(updated);
-        }
+
+        console.log('📊 Fetching fund data from API...');
+        const results = await fetchNavBulk(codes);
+
+        const updated = initialFundsToShow.map((f, idx) => {
+          const apiData = results[idx];
+
+          // If API returned data, merge it with our initial data
+          if (apiData && !apiData.error) {
+            return {
+              ...f,
+              schemeName: apiData.schemeName || f.schemeName,
+              category: apiData.category || f.category,
+              latestNav: apiData.latestNav,
+              ticker: apiData.ticker,
+              holdings: apiData.holdings || [],
+              expenseRatio: apiData.expenseRatio,
+              aum: apiData.aum,
+              numHoldings: apiData.numHoldings,
+              return1yr: apiData.return1yr || f.return1yr,
+            };
+          }
+
+          // Keep original data if API failed
+          return f;
+        });
+
+        setFundsToShowState(updated);
+        console.log('✅ Fund data loaded successfully');
       } catch (e) {
-        // ignore — UI will keep showing fallback static list
-        console.warn('Failed to enrich funds list from API', e);
+        console.warn('⚠️ Failed to load fund data from API, using fallback data:', e.message);
       }
     };
     loadLatestNavs();
@@ -119,7 +127,7 @@ function InvestorDashboard() {
     const holdings = investments.filter(h => (
       q === '' || (h.fundName && h.fundName.toLowerCase().includes(q)) || (h.fundCode && String(h.fundCode).includes(q))
     ));
-    const results = [...funds.slice(0,8), ...holdings.slice(0,8)];
+    const results = [...funds.slice(0, 8), ...holdings.slice(0, 8)];
     setSearchResults(results);
     setShowSuggestions(true);
     setSelectedIndex(results.length > 0 ? 0 : -1);
@@ -185,17 +193,17 @@ function InvestorDashboard() {
   ];
 
   const portfolioMap = {
-    'Large Cap': ['125497','118297','102885','100208','120304'],
-    'High Return': ['140006','120304','118297','105554'],
-    'Best SIP': ['117717','118297','120304','102885'],
-    'Gold Funds': ['120304','105554'],
-    'Mid Cap': ['120305','118874','102885'],
-    'Small Cap': ['140006','105554'],
+    'Large Cap': ['125497', '118297', '102885', '100208', '120304'],
+    'High Return': ['140006', '120304', '118297', '105554'],
+    'Best SIP': ['117717', '118297', '120304', '102885'],
+    'Gold Funds': ['120304', '105554'],
+    'Mid Cap': ['120305', '118874', '102885'],
+    'Small Cap': ['140006', '105554'],
   };
 
   const showPortfolio = (key) => {
     // mark which portfolio is selected and open its lead fund
-    try { setSelectedPortfolio && setSelectedPortfolio(key); } catch (e) {}
+    try { setSelectedPortfolio && setSelectedPortfolio(key); } catch (e) { }
     const codes = portfolioMap[key] || [];
     const code = codes[0];
     const fund = fundsToShowState.find(f => f.schemeCode === code) || fundsToShowState[0];
@@ -304,7 +312,7 @@ function InvestorDashboard() {
   useEffect(() => {
     try {
       localStorage.setItem("mf_theme", dark ? "dark" : "light");
-    } catch (e) {}
+    } catch (e) { }
   }, [dark]);
 
   const openFund = async (fund) => {
@@ -312,66 +320,30 @@ function InvestorDashboard() {
     setLoading(true);
     setCalcResult(null);
     setAmount("");
+
     try {
-      // Try to fetch real NAVs from the API service first
-      let data = null;
-      try {
-        data = await fetchNav(fund.schemeCode);
-      } catch (apiErr) {
-        // log and fall back to synthetic
-        console.warn('MF API fetch failed, falling back to synthetic data:', apiErr && apiErr.message ? apiErr.message : apiErr);
-        data = null;
+      console.log(`📈 Loading NAV data for ${fund.schemeName}...`);
+
+      // Always use synthetic NAV history for chart visualization
+      // API doesn't provide historical NAV data, only current holdings
+      const syntheticData = generateSyntheticNavHistory(fund, 250);
+
+      // If fund has latestNav from API, adjust the synthetic data to end at that value
+      if (fund.latestNav && syntheticData.length > 0) {
+        const targetNav = Number(fund.latestNav);
+        const currentLast = syntheticData[syntheticData.length - 1].nav;
+        const ratio = targetNav / currentLast;
+
+        // Scale all values to match the real latest NAV
+        syntheticData.forEach(point => {
+          point.nav = +(point.nav * ratio).toFixed(2);
+        });
       }
 
-      // normalize API response if present
-      if (data) {
-        let series = [];
-        try {
-          // common shapes: array of {date, nav} or {nav_date, nav} or wrapper like {data: [...]}
-          const arr = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : null);
-          if (arr && arr.length > 0) {
-            // detect keys
-            const sample = arr[0];
-            const dateKey = Object.keys(sample).find(k => /date|time|nav_date/i.test(k)) || Object.keys(sample).find(k => k.toLowerCase().includes('date'));
-            const navKey = Object.keys(sample).find(k => /nav|value|price|close/i.test(k)) || Object.keys(sample).find(k => k.toLowerCase().includes('nav'));
-            series = arr.map(item => {
-              const rawDate = item[dateKey] || item.date || item.timestamp || item.nav_date || item.time;
-              const d = rawDate ? new Date(rawDate) : null;
-              const dateStr = d && !isNaN(d) ? d.toISOString().split('T')[0] : (item.date || item.nav_date || String(Date.now()));
-              const nav = Number(item[navKey] || item.nav || item.value || item.price || 0);
-              return { date: dateStr, nav };
-            }).filter(p => p && !isNaN(p.nav));
-          } else if (data.latest_nav || data.nav) {
-            const v = Number(data.latest_nav || data.nav || data.value || 0);
-            series = [{ date: new Date().toISOString().split('T')[0], nav: v }];
-          }
-        } catch (normErr) {
-          console.warn('Failed to normalize API response', normErr);
-          series = [];
-        }
-
-        if (series && series.length > 1) {
-          setNavData(series);
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Fallback: generate synthetic NAV history for offline/demo use
-      const points = [];
-      const seed = Number((fund && fund.schemeCode && String(fund.schemeCode).slice(-3)) || 100);
-      const base = 100 + (seed % 50);
-      const today = new Date();
-      // generate 250 daily points (older -> newer)
-      for (let i = 249; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(today.getDate() - i);
-        // produce a smooth curve with small oscillation and gradual growth/decay
-        const nav = +(base * (1 + Math.sin(i / 12) * 0.02 + ((i - 125) / 125) * 0.02)).toFixed(2);
-        points.push({ date: d.toISOString().split('T')[0], nav });
-      }
-      setNavData(points);
+      setNavData(syntheticData);
+      console.log('✅ NAV chart data ready');
     } catch (e) {
+      console.warn('Failed to generate NAV data:', e);
       setNavData([]);
     } finally {
       setLoading(false);
@@ -414,7 +386,7 @@ function InvestorDashboard() {
     setInvestments(updated);
     try {
       localStorage.setItem(key, JSON.stringify(updated));
-    } catch (e) {}
+    } catch (e) { }
     alert(`Successfully invested ₹${amount} in ${selectedFund.schemeName}!`);
   };
 
@@ -427,7 +399,7 @@ function InvestorDashboard() {
         const user = JSON.parse(currentUserData);
         localStorage.setItem(`investments_${user.email}`, JSON.stringify(updated));
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const sellHoldingsForSelectedFund = () => {
@@ -442,13 +414,13 @@ function InvestorDashboard() {
         const user = JSON.parse(currentUserData);
         localStorage.setItem(`investments_${user.email}`, JSON.stringify(updated));
       }
-    } catch (e) {}
+    } catch (e) { }
     alert("Sold holdings for this fund (simulated)");
   };
 
   return (
     <div className={`mf-app ${dark ? "dark" : "light"}`}>
-      
+
 
       <main className="mf-main" style={{ padding: 20, width: "100%" }}>
         <header style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 16, alignItems: 'center', marginBottom: 18 }}>
@@ -457,7 +429,7 @@ function InvestorDashboard() {
               <h2 style={{ margin: 0, color: 'var(--primary)' }}>Investor Dashboard</h2>
               <div style={{ color: '#666', fontSize: 13 }}>Track funds, view charts and place quick orders</div>
             </div>
-            
+
           </div>
 
           <div style={{ margin: '0 16px' }} />
@@ -632,7 +604,7 @@ function InvestorDashboard() {
 
             {/* Quick preset buttons row */}
             <div style={{ marginTop: 12, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              {[500,1000,3000,5000,10000].map((amt) => {
+              {[500, 1000, 3000, 5000, 10000].map((amt) => {
                 const active = Number(amount) === amt;
                 return (
                   <button key={amt} onClick={() => setAmount(String(amt))} style={{ minWidth: 96, padding: '8px 10px', borderRadius: 999, border: active ? '1px solid #57b0ff' : '1px solid #e6eef8', background: active ? '#eaf6ff' : '#fff', color: active ? '#054a72' : '#0b4f6c', fontWeight: 700, boxShadow: active ? '0 6px 18px rgba(11,155,214,0.08)' : '0 2px 6px rgba(12,40,62,0.03)', cursor: 'pointer' }}>

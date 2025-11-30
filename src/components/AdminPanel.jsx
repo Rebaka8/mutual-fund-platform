@@ -165,12 +165,13 @@ export default function AdminPanel({ currentUser }) {
         {/* Market watch */}
         <div style={{ background: '#07122b', color: 'white', padding: 10, borderRadius: 8, marginBottom: 18, display: 'flex', gap: 14, alignItems: 'center' }}>
           {marketWatch.map(m => (
-            <div key={m.symbol} style={{ minWidth: 120 }}>
-              <div style={{ fontSize: 12, opacity: 0.8 }}>{m.symbol}</div>
-              <div style={{ fontWeight: 700 }}>{m.price.toLocaleString()}</div>
-              <div style={{ fontSize: 12, color: m.change >= 0 ? '#00c48c' : '#ff6b6b' }}>{m.change >= 0 ? '+' : ''}{m.change}%</div>
-            </div>
-          ))}
+
+<div key={m.symbol} style={{ minWidth: 120 }}> <div style={{ fontSize: 12, opacity: 0.8 }}>{m.symbol}</div> <div style={{ fontWeight: 700 }}>{m.price.toLocaleString()}</div> <div style={{ fontSize: 12, color: m.change >= 0 ? '#00c48c' : '#ff6b6b' }}>{m.change >= 0 ? '+' : ''}{m.change}%</div> </div> ))}
+Replace the entire map with this safer version:
+
+{marketWatch.map((m) => (
+
+<div key={m.symbol} style={{ minWidth: 120 }}> <div style={{ fontSize: 12, opacity: 0.8 }}>{m.symbol}</div> <div style={{ fontWeight: 700 }}> {m.price != null ? m.price.toLocaleString() : "--"} </div> <div style={{ fontSize: 12, color: m.change != null && m.change >= 0 ? "#00c48c" : "#ff6b6b", }} > {m.change != null ? `${m.change >= 0 ? "+" : ""}${m.change}%` : "--"} </div> </div> ))}
         </div>
 
         {/* Main grid: left = users/funds table, right = user details / charts */}

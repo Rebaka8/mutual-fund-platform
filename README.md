@@ -10,7 +10,10 @@ A comprehensive mutual fund investment platform built with React and Vite, featu
   - Investor Dashboard - Browse and invest in mutual funds
   - Advisor Section - Connect with certified financial advisors
   - Data Analyst Dashboard - Visualize investment trends
--- **Real-time Data**: (No external API enabled) NAV data is simulated locally in the front-end for demo purposes
+- **Real-time Data**: Integration with API Ninjas Mutual Fund API for live fund data
+  - Real fund information (name, ticker, holdings, expense ratio, AUM)
+  - Hybrid approach: US mutual fund data from API with synthetic NAV charts
+  - Automatic caching for improved performance
 - **Investment Calculator**: Calculate returns based on historical NAV data
 - **Interactive Charts**: Visualize fund performance using Recharts
 
@@ -34,12 +37,37 @@ cd mutual-fund-platform
 npm install
 ```
 
-3. Start the development server:
+3. Configure API Key:
+
+Create a `.env.local` file in the project root and add your API Ninjas key:
+```bash
+VITE_API_NINJAS_KEY=your_api_key_here
+```
+
+To get a free API key:
+- Visit [API Ninjas](https://api-ninjas.com/)
+- Sign up for a free account
+- Copy your API key from the dashboard
+- Paste it into `.env.local`
+
+**Note**: The `.env.local` file is gitignored and won't be committed to version control.
+
+4. Start the development server:
 ```bash
 npm run dev
 ```
 
-4. Open your browser and navigate to `http://localhost:5173`
+5. Open your browser and navigate to `http://localhost:5173`
+
+### API Integration Notes
+
+This platform uses the **API Ninjas Mutual Fund API** to fetch real fund data. The integration uses a hybrid approach:
+
+- **Real Data**: Fund names, tickers, holdings, expense ratios, and AUM are fetched from the API
+- **Synthetic Data**: Historical NAV charts are generated synthetically (API doesn't provide historical data)
+- **Ticker Mapping**: Indian fund scheme codes are mapped to US mutual fund tickers for demonstration
+- **Caching**: API responses are cached for 10 minutes to improve performance and reduce API calls
+- **Fallback**: If API is unavailable, the app gracefully falls back to static demo data
 
 ## Usage
 
@@ -96,7 +124,7 @@ mutual-fund-platform/
 - **React Router** - Client-side routing
 - **Vite** - Build tool and dev server
 - **Recharts** - Data visualization
--- (No external MF data API configured)
+- **API Ninjas** - Mutual Fund data API integration
 
 ## Key Changes from Previous Version
 
