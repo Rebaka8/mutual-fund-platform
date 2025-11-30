@@ -10,10 +10,10 @@ A comprehensive mutual fund investment platform built with React and Vite, featu
   - Investor Dashboard - Browse and invest in mutual funds
   - Advisor Section - Connect with certified financial advisors
   - Data Analyst Dashboard - Visualize investment trends
-- **Real-time Data**: Integration with API Ninjas Mutual Fund API for live fund data
-  - Real fund information (name, ticker, holdings, expense ratio, AUM)
-  - Hybrid approach: US mutual fund data from API with synthetic NAV charts
-  - Automatic caching for improved performance
+- **Data**: The app uses bundled sample data and synthetic NAV charts by default (no external API required).
+  - Sample fund information (name, scheme code, category) is bundled with the app
+  - Historical NAV charts are generated synthetically for visualization
+  - The app gracefully falls back to local data if no external API is configured
 - **Investment Calculator**: Calculate returns based on historical NAV data
 - **Interactive Charts**: Visualize fund performance using Recharts
 
@@ -37,37 +37,19 @@ cd mutual-fund-platform
 npm install
 ```
 
-3. Configure API Key:
-
-Create a `.env.local` file in the project root and add your API Ninjas key:
+-3. Start the development server:
 ```bash
-VITE_API_NINJAS_KEY=your_api_key_here
+npm run dev
 ```
-
-To get a free API key:
-- Visit [API Ninjas](https://api-ninjas.com/)
-- Sign up for a free account
-- Copy your API key from the dashboard
-- Paste it into `.env.local`
-
-**Note**: The `.env.local` file is gitignored and won't be committed to version control.
-
-4. Start the development server:
 ```bash
 npm run dev
 ```
 
 5. Open your browser and navigate to `http://localhost:5173`
 
-### API Integration Notes
+### Data / API
 
-This platform uses the **API Ninjas Mutual Fund API** to fetch real fund data. The integration uses a hybrid approach:
-
-- **Real Data**: Fund names, tickers, holdings, expense ratios, and AUM are fetched from the API
-- **Synthetic Data**: Historical NAV charts are generated synthetically (API doesn't provide historical data)
-- **Ticker Mapping**: Indian fund scheme codes are mapped to US mutual fund tickers for demonstration
-- **Caching**: API responses are cached for 10 minutes to improve performance and reduce API calls
-- **Fallback**: If API is unavailable, the app gracefully falls back to static demo data
+The project is configured to run without an external API by default. It uses synthetic NAV data and bundled sample funds so you can run and test the app locally without configuring API keys. If you later decide to enable a live mutual fund API, you can add an environment variable and re-enable API integration in the service modules.
 
 ## Usage
 
