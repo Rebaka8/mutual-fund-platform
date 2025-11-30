@@ -11,7 +11,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 
-export default function ProfilePage() {
+export default function ProfilePage({ onNotify }) {
   const [user, setUser] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState("");
@@ -84,8 +84,36 @@ export default function ProfilePage() {
               <div style={{ marginBottom: 8, color: '#666' }}>Email</div>
               <div style={{ fontWeight: 700, marginBottom: 12 }}>{user.email}</div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                <button style={quickActionStyle}>Add Funds</button>
-                <button style={{ ...quickActionStyle, background: '#6c757d' }}>Withdraw</button>
+                <button style={quickActionStyle} onClick={async () => {
+                  const amt = window.prompt('Enter amount to add (₹):', '1000');
+                  if (!amt) return;
+                  const a = parseFloat(amt.replace(/[^0-9\.]/g, ''));
+                  if (isNaN(a) || a <= 0) { window.alert('Invalid amount'); return; }
+                  const userData = JSON.parse(sessionStorage.getItem('currentUser'));
+                  const key = `investments_${userData.email}`;
+                  const newInv = { id: Date.now(), fundName: 'Wallet Top-up', amount: a, investmentDate: new Date().toISOString(), currentNAV: 0 };
+                  const stored = sessionStorage.getItem(key) || localStorage.getItem(key);
+                  const arr = stored ? JSON.parse(stored) : [];
+                  arr.push(newInv);
+                  sessionStorage.setItem(key, JSON.stringify(arr));
+                  setInvestments(arr);
+                  if (typeof onNotify === 'function') onNotify(`Added ₹${a.toLocaleString()} to account`);
+                }}>Add Funds</button>
+                <button style={{ ...quickActionStyle, background: '#6c757d' }} onClick={() => {
+                  const amt = window.prompt('Enter amount to withdraw (₹):', '500');
+                  if (!amt) return;
+                  const a = parseFloat(amt.replace(/[^0-9\.]/g, ''));
+                  if (isNaN(a) || a <= 0) { window.alert('Invalid amount'); return; }
+                  const userData = JSON.parse(sessionStorage.getItem('currentUser'));
+                  const key = `investments_${userData.email}`;
+                  const newInv = { id: Date.now(), fundName: 'Withdrawal', amount: -a, investmentDate: new Date().toISOString(), currentNAV: 0 };
+                  const stored = sessionStorage.getItem(key) || localStorage.getItem(key);
+                  const arr = stored ? JSON.parse(stored) : [];
+                  arr.push(newInv);
+                  sessionStorage.setItem(key, JSON.stringify(arr));
+                  setInvestments(arr);
+                  if (typeof onNotify === 'function') onNotify(`Withdrew ₹${a.toLocaleString()} from account`, 'info');
+                }}>Withdraw</button>
               </div>
               <div style={{ color: '#666', fontSize: 13, marginBottom: 6 }}>Connected Accounts</div>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -99,8 +127,36 @@ export default function ProfilePage() {
           <div style={{ ...profileCardStyle, marginTop: 12, padding: 14 }}>
             <h4 style={{ marginTop: 0, color: '#0077cc' }}>Quick Actions</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button style={actionBtnStyle} onClick={() => window.alert('Feature not implemented: Add Funds')}>Top up</button>
-              <button style={actionBtnStyle} onClick={() => window.alert('Feature not implemented: Withdraw')}>Withdraw</button>
+              <button style={actionBtnStyle} onClick={() => {
+                const amt = window.prompt('Enter amount to top up (₹):', '1000');
+                if (!amt) return;
+                const a = parseFloat(amt.replace(/[^0-9\.]/g, ''));
+                if (isNaN(a) || a <= 0) { window.alert('Invalid amount'); return; }
+                const userData = JSON.parse(sessionStorage.getItem('currentUser'));
+                const key = `investments_${userData.email}`;
+                const newInv = { id: Date.now(), fundName: 'Top-up', amount: a, investmentDate: new Date().toISOString(), currentNAV: 0 };
+                const stored = sessionStorage.getItem(key) || localStorage.getItem(key);
+                const arr = stored ? JSON.parse(stored) : [];
+                arr.push(newInv);
+                sessionStorage.setItem(key, JSON.stringify(arr));
+                setInvestments(arr);
+                if (typeof onNotify === 'function') onNotify(`Top-up: ₹${a.toLocaleString()}`);
+              }}>Top up</button>
+              <button style={actionBtnStyle} onClick={() => {
+                const amt = window.prompt('Enter amount to withdraw (₹):', '500');
+                if (!amt) return;
+                const a = parseFloat(amt.replace(/[^0-9\.]/g, ''));
+                if (isNaN(a) || a <= 0) { window.alert('Invalid amount'); return; }
+                const userData = JSON.parse(sessionStorage.getItem('currentUser'));
+                const key = `investments_${userData.email}`;
+                const newInv = { id: Date.now(), fundName: 'Withdraw', amount: -a, investmentDate: new Date().toISOString(), currentNAV: 0 };
+                const stored = sessionStorage.getItem(key) || localStorage.getItem(key);
+                const arr = stored ? JSON.parse(stored) : [];
+                arr.push(newInv);
+                sessionStorage.setItem(key, JSON.stringify(arr));
+                setInvestments(arr);
+                if (typeof onNotify === 'function') onNotify(`Withdrawn: ₹${a.toLocaleString()}`);
+              }}>Withdraw</button>
               <button style={actionBtnStyle} onClick={() => window.alert('Feature not implemented: Download Statement')}>Download Statement</button>
             </div>
           </div>

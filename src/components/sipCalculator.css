@@ -1,0 +1,107 @@
+/* SIP Calculator component styles: compact, symmetric controls */
+
+.sip-input{
+  width:100%;
+  box-sizing:border-box;
+  height:44px;
+  padding:10px 12px 10px 44px; /* leave space for currency prefix */
+  border-radius:12px;
+  border:1px solid #e6eef8;
+  background:#fbfdff;
+  font-size:14px;
+  color:#073b4c;
+  transition:box-shadow .18s ease,border-color .18s ease,transform .12s ease;
+  margin-bottom:6px;
+}
+
+/* show the same visual for native focus and the controlled focus class */
+.sip-input:focus,
+.sip-input.focused{
+  border-color:#9fd1ff;
+  box-shadow:0 6px 18px rgba(59,130,246,0.08);
+  outline: none;
+}
+
+.sip-quick{
+  display:flex;
+  gap:12px;
+  justify-content:center;
+  margin-top:16px;
+  flex-wrap:wrap;
+}
+
+.sip-quick-btn{
+  height:44px;
+  padding:8px 18px;
+  border-radius:999px;
+  border:1px solid #e6eef8;
+  background:#fff;
+  cursor:pointer;
+  color:#0b4f6c;
+  font-weight:700;
+  font-size:13px;
+  min-width:100px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:0 2px 6px rgba(12,40,62,0.03);
+  transition:all .16s ease;
+}
+
+.sip-quick-btn:hover{ transform:translateY(-1px); }
+
+.sip-quick-btn.active{
+  background:#eaf6ff;
+  border-color:#57b0ff;
+  box-shadow:0 6px 18px rgba(11,155,214,0.08);
+  color:#054a72;
+}
+
+.sip-actions{
+  display:flex;
+  justify-content:center;
+  gap:16px;
+  margin-top:14px;
+}
+
+.sip-btn{
+  height:46px;
+  border-radius:12px;
+  padding:0 18px;
+  font-weight:700;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:none;
+  font-size:15px;
+}
+
+.sip-btn.primary{
+  background:linear-gradient(90deg,#0577d6,#0b9bd6);
+  color:#fff;
+  box-shadow:0 10px 26px rgba(11,155,214,0.12);
+  min-width:160px;
+}
+
+.sip-btn.ghost{
+  background:transparent;
+  border:1px solid #e6eef8;
+  color:#073b4c;
+  min-width:90px;
+}
+
+@media (max-width:520px){
+  .sip-quick-btn{ min-width:72px; padding:8px 10px; font-size:13px }
+  .sip-input{ height:42px }
+  .sip-btn{ height:42px }
+}
+
+/* Row-level spacing to avoid overlap between controls */
+.sip-row{ display:flex; gap:12px; align-items:center; margin-bottom:12px; }
+.sip-label{ min-width:120px; color:#334e68; font-size:13px }
+.sip-row > div{ flex:1; }
+
+/* Tweak number input spinbox to look consistent (include standard 'appearance' for compatibility) */
+input.sip-input[type="number"]{ appearance: textfield; -moz-appearance: textfield; -webkit-appearance: none; }
+input.sip-input::-webkit-outer-spin-button, input.sip-input::-webkit-inner-spin-button{ -webkit-appearance:none; appearance:none; margin:0 }

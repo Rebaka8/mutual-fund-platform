@@ -49,6 +49,27 @@ function App() {
     setAuthMode("landing");
   };
 
+  // UI states for header widgets
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [themeDark, setThemeDark] = useState(false);
+  const [notifications, setNotifications] = useState([]); // array of {id, message, time, type}
+  const [notifPanelOpen, setNotifPanelOpen] = useState(false);
+
+  const addNotification = (message, type = 'info') => {
+    const n = { id: Date.now(), message, time: new Date().toLocaleString(), type };
+    setNotifications(prev => [n, ...prev].slice(0, 50));
+  };
+
+  const toggleTheme = () => {
+    setThemeDark(d => !d);
+    // simple body class toggle for optional theme css hooks
+    try {
+      if (!themeDark) document.documentElement.classList.add('dark-theme');
+      else document.documentElement.classList.remove('dark-theme');
+    } catch (e) {}
+  };
+
   return (
     <Router>
       {!currentUser ? (
@@ -69,68 +90,129 @@ function App() {
       <div className="app-container">
         <header
           style={{
-            background: "#0077cc",
+            background: themeDark ? "#0b1220" : "#0077cc",
             color: "white",
             display: "flex",
             alignItems: "center",
-            padding: "12px 36px",
-            justifyContent: "space-between"
+            padding: "10px 20px",
+            justifyContent: "space-between",
+            position: 'relative'
           }}
         >
-          <div style={{ display: "flex", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {/* Menu widget button (shows navigation links in a popup) */}
+            <button aria-label="Open menu" onClick={() => setMenuOpen(m => !m)} style={{
+              background: 'transparent', border: 'none', color: 'white', fontSize: 20, cursor: 'pointer', padding: 8, borderRadius: 8
+            }}>☰</button>
+
             <img
               src={Logo}
               alt="Logo"
               style={{
-                height: 38,
-                width: 38,
+                height: 36,
+                width: 36,
                 borderRadius: 8,
-                marginRight: 14,
+                marginRight: 6,
                 objectFit: "contain",
                 background: "white",
-                boxShadow: "0 2px 8px #0077cc"
+                boxShadow: themeDark ? '0 2px 8px #00000055' : "0 2px 8px #0077cc"
               }}
             />
-            <span style={{ fontWeight: 800, fontSize: 24, color: "white" }}>
-              Mutual Fund Platform
-            </span>
-            <h3 style={{ margin: "0 0 0 18px", fontWeight: 600 }}>
-              | Welcome, {getUserName(currentUser)}{userRole && ` (${userRole})`}
-            </h3>
-          </div>
-          <nav style={{ display: "flex", alignItems: "center" }}>
-            {userRole === "admin" && (
-              <Link style={navLinkStyle} to="/admin">Admin Panel</Link>
+
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 20, color: 'white' }}>Mutual Fund Platform</div>
+              <div style={{ fontSize: 13, opacity: 0.95 }}>Welcome, {getUserName(currentUser)}{userRole && ` (${userRole})`}</div>
+            </div>
+
+            {menuOpen && (
+              <div style={{ position: 'absolute', top: '56px', left: 12, background: '#fff', color: '#222', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.12)', padding: 12, zIndex: 60, minWidth: 220 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {userRole === 'admin' && <Link to="/admin" style={{ textDecoration: 'none', color: '#0b6bd6', fontWeight: 600 }} onClick={() => setMenuOpen(false)}>Admin Panel</Link>}
+                  <Link to="/investor" style={{ textDecoration: 'none', color: '#0b6bd6', fontWeight: 600 }} onClick={() => setMenuOpen(false)}>Investor Dashboard</Link>
+                  <Link to="/advisor" style={{ textDecoration: 'none', color: '#0b6bd6', fontWeight: 600 }} onClick={() => setMenuOpen(false)}>Advisor Section</Link>
+                  <Link to="/analyst" style={{ textDecoration: 'none', color: '#0b6bd6', fontWeight: 600 }} onClick={() => setMenuOpen(false)}>Data Analyst</Link>
+                  <button onClick={() => { setMenuOpen(false); handleLogout(); }} style={{ border: 'none', background: '#d12c2c', color: 'white', padding: '8px 12px', borderRadius: 8, cursor: 'pointer', marginTop: 6 }}>Logout</button>
+                </div>
+              </div>
             )}
-            <Link style={navLinkStyle} to="/investor">Investor Dashboard</Link>
-            <Link style={navLinkStyle} to="/advisor">Advisor Section</Link>
-            <Link style={navLinkStyle} to="/analyst">Data Analyst</Link>
-            <Link style={navLinkStyle} to="/profile">Profile</Link>
-            <button
-              style={{
-                marginLeft: "30px",
-                background: "#d12c2c",
-                color: "white",
-                border: "none",
-                borderRadius: 8,
-                padding: "8px 22px",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-              onClick={handleLogout}
-            >
-              Logout
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Notification widget */}
+            <div style={{ position: 'relative' }}>
+              <button aria-label="Notifications" onClick={() => setNotifPanelOpen(p => !p)} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', fontSize: 18 }}>
+                🔔
+              </button>
+              {notifications.length > 0 && (
+                <div style={{ position: 'absolute', top: -6, right: -6, background: '#ff6b6b', color: 'white', borderRadius: 10, padding: '2px 6px', fontSize: 12, fontWeight: 700 }}>{notifications.length}</div>
+              )}
+
+              {notifPanelOpen && (
+                <div style={{ position: 'absolute', right: 0, top: 36, background: '#fff', color: '#222', borderRadius: 8, boxShadow: '0 8px 30px rgba(0,0,0,0.12)', padding: 12, zIndex: 70, minWidth: 320 }}>
+                  <div style={{ fontWeight: 800, marginBottom: 8 }}>Notifications</div>
+                  <div style={{ maxHeight: 300, overflow: 'auto' }}>
+                    {notifications.length === 0 ? (
+                      <div style={{ color: '#666', padding: 18, textAlign: 'center' }}>No notifications</div>
+                    ) : (
+                      notifications.map(n => (
+                        <div key={n.id} style={{ padding: '8px 6px', borderBottom: '1px solid #f1f3f5', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                          <div>
+                            <div style={{ fontWeight: 700 }}>{n.message}</div>
+                            <div style={{ fontSize: 12, color: '#888' }}>{n.time}</div>
+                          </div>
+                          <div style={{ alignSelf: 'center', fontSize: 12, color: n.type === 'error' ? '#d12c2c' : '#0b6bd6' }}>{n.type.toUpperCase()}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                    <button onClick={() => setNotifications([])} style={{ border: 'none', background: '#f1f3f5', padding: '8px 10px', borderRadius: 8, cursor: 'pointer' }}>Clear</button>
+                    <button onClick={() => setNotifPanelOpen(false)} style={{ border: 'none', background: '#0077cc', color: 'white', padding: '8px 10px', borderRadius: 8, cursor: 'pointer' }}>Close</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Theme toggle (left of profile) */}
+            <button aria-label="Toggle theme" onClick={toggleTheme} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', padding: '6px 8px', borderRadius: 8, color: 'white', cursor: 'pointer' }}>
+              {themeDark ? '🌙' : '🌤'}
             </button>
-          </nav>
+
+            {/* Profile avatar (rightmost) */}
+            <div style={{ position: 'relative' }}>
+              <button onClick={() => setProfileOpen(p => !p)} style={{ background: 'white', borderRadius: '50%', width: 40, height: 40, border: 'none', cursor: 'pointer', overflow: 'hidden', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ display: 'inline-flex', width: 40, height: 40, alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#0b6bd6', fontSize: 16, lineHeight: '40px' }}>{getUserName(currentUser)[0] || 'U'}</span>
+              </button>
+
+              {profileOpen && (
+                <div style={{ position: 'absolute', right: 0, top: 48, background: '#fff', color: '#222', borderRadius: 8, boxShadow: '0 8px 30px rgba(0,0,0,0.12)', padding: 12, zIndex: 80, minWidth: 220 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#0b6bd6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{getUserName(currentUser)[0] || 'U'}</div>
+                    <div>
+                      <div style={{ fontWeight: 800 }}>{getUserName(currentUser)}</div>
+                      <div style={{ fontSize: 12, color: '#657786' }}>Member since 2025</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <Link to="/profile" style={{ textDecoration: 'none', color: '#0b6bd6' }} onClick={() => setProfileOpen(false)}>Profile</Link>
+                    <Link to="/investor" style={{ textDecoration: 'none', color: '#0b6bd6' }} onClick={() => setProfileOpen(false)}>Investor Dashboard</Link>
+                    <Link to="/advisor" style={{ textDecoration: 'none', color: '#0b6bd6' }} onClick={() => setProfileOpen(false)}>Advisor Section</Link>
+                    <Link to="/analyst" style={{ textDecoration: 'none', color: '#0b6bd6' }} onClick={() => setProfileOpen(false)}>Data Analyst</Link>
+                    <button onClick={() => { setProfileOpen(false); handleLogout(); }} style={{ border: 'none', background: '#d12c2c', color: 'white', padding: '8px 12px', borderRadius: 8, cursor: 'pointer', marginTop: 6 }}>Sign Out</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </header>
         <main style={{ padding: "40px", maxWidth: "1200px", margin: "0 auto" }}>
           <Routes>
             <Route path="/" element={<Navigate to={`/${userRole}`} />} />
-            <Route path="/admin" element={<AdminPanel currentUser={currentUser} />} />
-            <Route path="/investor" element={<InvestorDashboard />} />
-            <Route path="/advisor" element={<AdvisorSection />} />
-            <Route path="/analyst" element={<DataAnalystDashboard />} />
-            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/admin" element={<AdminPanel currentUser={currentUser} onNotify={addNotification} />} />
+            <Route path="/investor" element={<InvestorDashboard onNotify={addNotification} />} />
+            <Route path="/advisor" element={<AdvisorSection onNotify={addNotification} />} />
+            <Route path="/analyst" element={<DataAnalystDashboard onNotify={addNotification} />} />
+            <Route path="/profile" element={<ProfilePage onNotify={addNotification} />} />
             <Route path="*" element={<Navigate to={`/${userRole}`} />} />
           </Routes>
         </main>

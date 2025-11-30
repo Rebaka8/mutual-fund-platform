@@ -8,44 +8,74 @@ export default function SignUpPage({ onSignUp, onBack }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // Email validation regex
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   const handleSignUp = (e) => {
     e.preventDefault();
+    setError("");
+    setSuccess("");
+
+    // Basic validation
     if (!email || !fullname || !password) {
       setError("Please fill all the fields.");
       return;
     }
-    
+
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
     if (password.length < 6) {
       setError("Password must be at least 6 characters long.");
       return;
     }
 
-    setError("");
+    // Sanitize fullname input
+    const sanitizedFullname = fullname.trim().replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
 
     // Get existing users from session storage
-    const usersData = sessionStorage.getItem("users");
-    const users = usersData ? JSON.parse(usersData) : [];
-    
+    let users = [];
+    try {
+      const usersData = sessionStorage.getItem("users");
+      users = usersData ? JSON.parse(usersData) : [];
+    } catch (err) {
+      console.error("Error parsing users from sessionStorage:", err);
+      setError("Storage error. Please try again.");
+      return;
+    }
+
     // Check if user already exists
-    const existingUser = users.find(u => u.email === email);
+    const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
     if (existingUser) {
       setError("User with this email already exists.");
       return;
     }
 
-    // Add new user
-    const newUser = { email, fullname, password };
-    users.push(newUser);
-    sessionStorage.setItem("users", JSON.stringify(users));
-    
-    setSuccess("Account created successfully! Redirecting to login...");
-    setError("");
-    
-    // Auto-login after 1.5 seconds
-    setTimeout(() => {
-      sessionStorage.setItem("currentUser", JSON.stringify(newUser));
-      onSignUp && onSignUp(email);
-    }, 1500);
+    // Create new user (never store plain password in production)
+    const newUser = { 
+      email: email.trim().toLowerCase(), 
+      fullname: sanitizedFullname, 
+      password // TODO: Hash password server-side in production
+    };
+
+    // Save to storage
+    try {
+      users.push(newUser);
+      sessionStorage.setItem("users", JSON.stringify(users));
+      
+      setSuccess("Account created successfully! Redirecting to login...");
+      
+      // Auto-login after 1.5 seconds
+      setTimeout(() => {
+        sessionStorage.setItem("currentUser", JSON.stringify(newUser));
+        onSignUp && onSignUp(email);
+      }, 1500);
+    } catch (err) {
+      console.error("Error saving user to sessionStorage:", err);
+      setError("Failed to create account. Please try again.");
+    }
   };
 
   return (
@@ -76,7 +106,7 @@ export default function SignUpPage({ onSignUp, onBack }) {
       >
         <img
           src={Logo}
-          alt="Logo"
+          alt="Finex Logo"
           style={{
             width: "80px",
             height: "80px",
@@ -123,6 +153,7 @@ export default function SignUpPage({ onSignUp, onBack }) {
 
           <button
             type="submit"
+            disabled={!email || !fullname || !password || error}
             style={{
               ...inputStyle,
               background: "#0077cc",
@@ -134,6 +165,7 @@ export default function SignUpPage({ onSignUp, onBack }) {
               width: "100%",
               border: "none",
               boxShadow: "0 2px 6px #0077cc1a",
+              opacity: (!email || !fullname || !password || error) ? 0.6 : 1,
             }}
           >
             Sign Up
@@ -146,6 +178,7 @@ export default function SignUpPage({ onSignUp, onBack }) {
               marginTop: 15,
               color: error ? "#d12c2c" : "#058c44",
               fontSize: 14,
+              fontWeight: 500,
             }}
           >
             {error || success}
@@ -160,10 +193,12 @@ export default function SignUpPage({ onSignUp, onBack }) {
             marginTop: "18px",
             cursor: "pointer",
             fontWeight: 600,
+            fontSize: 15,
           }}
           onClick={onBack}
+          type="button"
         >
-          &larr; Back
+          ← Back
         </button>
       </div>
     </div>
@@ -181,5 +216,7 @@ const inputStyle = {
   fontSize: 17,
   outline: "none",
   background: "#f5fbff",
+  transition: "border-color 0.2s, box-shadow 0.2s",
 };
 
+export { inputStyle };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import SipCalculator from './sipCalculator';
 import {
   LineChart,
   Line,
@@ -61,6 +62,175 @@ const portfolioValue = {
 };
 
 function InvestorDashboard() {
+  // Search UI state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchCategory, setSearchCategory] = useState("");
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const debounceRef = React.useRef(null);
+
+  const runFilter = (category, query) => {
+    const q = (query || searchQuery || '').toLowerCase().trim();
+    const cat = (category || searchCategory || '').trim();
+    // Combine funds and holdings for suggestions
+    const funds = fundsToShow.filter(f => (
+      (q === '' || f.schemeName.toLowerCase().includes(q) || f.schemeCode.includes(q) || f.category.toLowerCase().includes(q))
+      && (cat === '' || f.category === cat)
+    ));
+    const holdings = investments.filter(h => (
+      q === '' || (h.fundName && h.fundName.toLowerCase().includes(q)) || (h.fundCode && String(h.fundCode).includes(q))
+    ));
+    const results = [...funds.slice(0,8), ...holdings.slice(0,8)];
+    setSearchResults(results);
+    setShowSuggestions(true);
+    setSelectedIndex(results.length > 0 ? 0 : -1);
+  };
+
+  const handleSearchChange = (val) => {
+    setSearchQuery(val);
+    // debounce the runFilter so we don't run on every keystroke
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (!val) {
+        setSearchResults([]);
+        setShowSuggestions(false);
+        setSelectedIndex(-1);
+        return;
+      }
+      runFilter(searchCategory, val);
+    }, 220);
+  };
+
+  const selectSearchResult = (index) => {
+    const idx = typeof index === 'number' ? index : selectedIndex;
+    const item = searchResults[idx];
+    if (!item) return;
+    // If it's a fund (has schemeCode), open it; else if it's a holding, 
+    // attempt to open by fundCode
+    if (item.schemeCode) {
+      openFund(item);
+      setSelectedFund(item);
+    } else if (item.fundCode) {
+      const f = fundsToShow.find(ff => ff.schemeCode === item.fundCode) || fundsToShow[0];
+      if (f) openFund(f);
+    }
+    setSearchQuery(''); setSearchResults([]); setShowSuggestions(false); setSelectedIndex(-1);
+  };
+
+  // keyboard navigation handler for the input
+  const handleInputKeyDown = (e) => {
+    if (!showSuggestions) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex(i => Math.min((searchResults.length - 1), Math.max(0, (i === -1 ? 0 : i + 1))));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex(i => Math.max(0, (i <= 0 ? 0 : i - 1)));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedIndex >= 0) selectSearchResult(selectedIndex);
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+      setSelectedIndex(-1);
+    }
+  };
+
+  // Portfolio cards mapping and handler
+  const portfolios = [
+    { key: 'Large Cap', title: 'Large Cap Funds' },
+    { key: 'High Return', title: 'High Return' },
+    { key: 'Best SIP', title: 'Best SIP Funds' },
+    { key: 'Gold Funds', title: 'Gold Funds' },
+    { key: 'Mid Cap', title: 'Mid Cap' },
+    { key: 'Small Cap', title: 'Small Cap' },
+  ];
+
+  const portfolioMap = {
+    'Large Cap': ['125497','118297','102885','100208','120304'],
+    'High Return': ['140006','120304','118297','105554'],
+    'Best SIP': ['117717','118297','120304','102885'],
+    'Gold Funds': ['120304','105554'],
+    'Mid Cap': ['120305','118874','102885'],
+    'Small Cap': ['140006','105554'],
+  };
+
+  const showPortfolio = (key) => {
+    // mark which portfolio is selected and open its lead fund
+    try { setSelectedPortfolio && setSelectedPortfolio(key); } catch (e) {}
+    const codes = portfolioMap[key] || [];
+    const code = codes[0];
+    const fund = fundsToShow.find(f => f.schemeCode === code) || fundsToShow[0];
+    if (fund) {
+      setSelectedFund(fund);
+      openFund(fund);
+    }
+  };
+  const [selectedPortfolio, setSelectedPortfolio] = useState(null);
+  const [quickSearchQuery, setQuickSearchQuery] = useState("");
+  const handleQuickSearchKeyDown = (e) => {
+    if (e.key === 'Enter' || e.keyCode === 13 || e.code === 'Enter') {
+      e.preventDefault();
+      const q = quickSearchQuery.trim().toLowerCase();
+      if (!q) return;
+
+      // portfolio keyword detection (match common phrases)
+      const portfolioKeywords = {
+        'large cap': 'Large Cap',
+        'largecap': 'Large Cap',
+        'large': 'Large Cap',
+        'mid cap': 'Mid Cap',
+        'midcap': 'Mid Cap',
+        'mid': 'Mid Cap',
+        'small cap': 'Small Cap',
+        'smallcap': 'Small Cap',
+        'small': 'Small Cap',
+        'best sip': 'Best SIP',
+        'sip': 'Best SIP',
+        'high return': 'High Return',
+        'high': 'High Return',
+        'gold': 'Gold Funds',
+      };
+
+      // try to find a portfolio key from query tokens
+      let matchedPortfolio = null;
+      Object.keys(portfolioKeywords).forEach((k) => {
+        if (q.includes(k) && !matchedPortfolio) matchedPortfolio = portfolioKeywords[k];
+      });
+
+      if (matchedPortfolio) {
+        // show portfolio funds and open first representative fund
+        setSelectedPortfolio(matchedPortfolio);
+        const codes = portfolioMap[matchedPortfolio] || [];
+        const fund = fundsToShow.find(f => f.schemeCode === codes[0]) || fundsToShow[0];
+        if (fund) openFund(fund);
+        setQuickSearchQuery('');
+        return;
+      }
+
+      // otherwise try to find a single fund by name or code
+      const f = fundsToShow.find(f => (f.schemeName && f.schemeName.toLowerCase().includes(q)) || (f.schemeCode && f.schemeCode.includes(q)));
+      if (f) {
+        setSelectedFund(f);
+        openFund(f);
+        setQuickSearchQuery('');
+        return;
+      }
+
+      // fallback: tokenized name matching
+      const parts = q.split(/\s+/).filter(Boolean);
+      const f2 = fundsToShow.find(ff => parts.every(p => (ff.schemeName || '').toLowerCase().includes(p)));
+      if (f2) {
+        setSelectedFund(f2);
+        openFund(f2);
+        setQuickSearchQuery('');
+        return;
+      }
+
+      alert('No fund or portfolio found for "' + quickSearchQuery + '"');
+    }
+  };
+
   const [selectedFund, setSelectedFund] = useState(null);
   const [navData, setNavData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -105,13 +275,19 @@ function InvestorDashboard() {
     setCalcResult(null);
     setAmount("");
     try {
-      const res = await fetch(`https://api.mfapi.in/mf/${fund.schemeCode}`);
-      const json = await res.json();
-      const points = (json.data || [])
-        .map((item) => ({ date: item.date, nav: parseFloat(item.nav) }))
-        .filter((p) => !isNaN(p.nav))
-        .reverse()
-        .slice(-250);
+      // External API calls removed — generate a synthetic NAV history for offline/demo use
+      const points = [];
+      const seed = Number((fund && fund.schemeCode && String(fund.schemeCode).slice(-3)) || 100);
+      const base = 100 + (seed % 50);
+      const today = new Date();
+      // generate 250 daily points (older -> newer)
+      for (let i = 249; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        // produce a smooth curve with small oscillation and gradual growth/decay
+        const nav = +(base * (1 + Math.sin(i / 12) * 0.02 + ((i - 125) / 125) * 0.02)).toFixed(2);
+        points.push({ date: d.toISOString().split('T')[0], nav });
+      }
       setNavData(points);
     } catch (e) {
       setNavData([]);
@@ -192,17 +368,34 @@ function InvestorDashboard() {
       
 
       <main className="mf-main" style={{ padding: 20, width: "100%" }}>
-        <header style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 18, justifyContent: "space-between" }}>
-          <div>
-            <h2 style={{ margin: 0, color: "var(--primary)" }}>Investor Dashboard</h2>
-            <div style={{ color: "#666", fontSize: 13 }}>Track funds, view charts and place quick orders</div>
+        <header style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 16, alignItems: 'center', marginBottom: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <h2 style={{ margin: 0, color: 'var(--primary)' }}>Investor Dashboard</h2>
+              <div style={{ color: '#666', fontSize: 13 }}>Track funds, view charts and place quick orders</div>
+            </div>
+            
           </div>
 
-          <div style={{ display: "flex", gap: 12 }}>
+          <div style={{ margin: '0 16px' }} />
+
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <div style={{ minWidth: 260, display: 'flex', alignItems: 'center' }}>
+              <input
+                aria-label="Quick search funds"
+                placeholder="Search funds (press Enter)"
+                value={quickSearchQuery}
+                onChange={(e) => setQuickSearchQuery(e.target.value)}
+                onKeyDown={handleQuickSearchKeyDown}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #e6f0fb', boxShadow: '0 2px 6px rgba(3,102,170,0.04)' }}
+              />
+            </div>
+
             <div style={{ ...portfolioCard, padding: 12, minWidth: 140 }}>
               <div style={portfolioLabel}>Invested</div>
               <div style={{ ...portfolioValue, fontSize: 18 }}>₹{investments.reduce((sum, inv) => sum + (inv.amount || 0), 0).toFixed(0)}</div>
             </div>
+
             <div style={{ ...portfolioCard, padding: 12, minWidth: 140 }}>
               <div style={portfolioLabel}>Value</div>
               <div style={{ ...portfolioValue, fontSize: 18 }}>₹{investments.reduce((sum, inv) => sum + ((inv.amount || 0) * (1 + (inv.expectedReturn || 0) / 100)), 0).toFixed(0)}</div>
@@ -217,22 +410,55 @@ function InvestorDashboard() {
         <section style={{ display: "grid", gridTemplateColumns: "280px 1fr 320px", gap: 18, alignItems: "start" }}>
           <div style={{ background: "var(--card-bg, #fff)", borderRadius: 12, padding: 12, boxShadow: "0 6px 20px rgba(0,0,0,0.04)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <h4 style={{ margin: 0 }}>Market Watch</h4>
-              <button style={{ background: "none", border: "none", color: "#0077cc", cursor: "pointer" }} onClick={() => { setNavData([]); setSelectedFund(null); }}>Reset</button>
+              <h4 style={{ margin: 0 }}>Portfolios</h4>
+              <button style={{ background: "none", border: "none", color: "#0077cc", cursor: "pointer" }} onClick={() => { setNavData([]); setSelectedFund(null); setSelectedPortfolio(null); }}>Reset</button>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {fundsToShow.map((fund) => (
-                <button key={fund.schemeCode} onClick={() => openFund(fund)}
-                  style={{ textAlign: "left", padding: "10px 8px", borderRadius: 8, border: "1px solid #f0f0f0", background: selectedFund && selectedFund.schemeCode === fund.schemeCode ? "#f0f8ff" : "transparent", cursor: "pointer" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ fontWeight: 600, color: "#073b4c" }}>{fund.schemeName.split(" - ")[0]}</div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ color: (typeof fund.return1yr === 'string' && fund.return1yr.startsWith('-')) ? "#d12c2c" : "#22a745", fontWeight: 700 }}>{fund.return1yr}</div>
-                      <div style={{ fontSize: 12, color: "#777" }}>{fund.category}</div>
-                    </div>
+
+            <div style={{ maxHeight: 520, overflowY: 'auto', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {portfolios.map((p) => {
+                  const codes = portfolioMap[p.key] || [];
+                  const sample = fundsToShow.find(f => f.schemeCode === codes[0]) || fundsToShow[0];
+                  return (
+                    <button key={p.key} onClick={() => showPortfolio(p.key)} style={{ width: '100%', borderRadius: 10, padding: '12px', textAlign: 'left', border: selectedPortfolio === p.key ? '2px solid #0077cc' : '1px solid #eef6fb', background: '#fff', cursor: 'pointer' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: '#073b4c' }}>{p.title}</div>
+                          <div style={{ fontSize: 12, color: '#666', marginTop: 6 }}>{sample.schemeName.split(' - ')[0]}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ marginTop: 8, fontSize: 12, color: '#22a745', fontWeight: 800 }}>{sample.return1yr}</div>
+                          <div style={{ fontSize: 11, color: '#999' }}>{sample.category}</div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div style={{ marginTop: 12 }}>
+                {selectedPortfolio ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {(portfolioMap[selectedPortfolio] || []).map((code) => {
+                      const fund = fundsToShow.find(f => f.schemeCode === code);
+                      if (!fund) return null;
+                      return (
+                        <button key={code} onClick={() => openFund(fund)} style={{ textAlign: 'left', padding: '10px 8px', borderRadius: 8, border: '1px solid #f0f0f0', background: selectedFund && selectedFund.schemeCode === fund.schemeCode ? '#f0f8ff' : 'transparent', cursor: 'pointer' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ fontWeight: 600, color: '#073b4c' }}>{fund.schemeName.split(' - ')[0]}</div>
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ color: (typeof fund.return1yr === 'string' && fund.return1yr.startsWith('-')) ? '#d12c2c' : '#22a745', fontWeight: 700 }}>{fund.return1yr}</div>
+                              <div style={{ fontSize: 12, color: '#777' }}>{fund.category}</div>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
-                </button>
-              ))}
+                ) : (
+                  <div style={{ color: '#777' }}>Select a portfolio above to view its funds.</div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -276,55 +502,60 @@ function InvestorDashboard() {
           </div>
 
           <div style={{ background: "var(--card-bg, #fff)", borderRadius: 12, padding: 14, boxShadow: "0 6px 20px rgba(0,0,0,0.04)" }}>
-            <h4 style={{ marginTop: 0 }}>Quick Order</h4>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ fontSize: 13, color: "#555" }}>Fund</div>
-              <div style={{ fontWeight: 700 }}>{selectedFund ? selectedFund.schemeName.split(" - ")[0] : "—"}</div>
-
-              <input type="number" placeholder="Amount (₹)" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
-
-              <select value={selectedDuration} onChange={(e) => setSelectedDuration(+e.target.value)} style={{ ...inputStyle, width: "100%" }}>
-                {durations.map((d) => (
-                  <option key={d.months} value={d.months}>{d.label}</option>
-                ))}
-              </select>
-
-              <button onClick={calculateReturn} style={{ background: "#0077cc", color: "#fff", border: "none", padding: "10px", borderRadius: 8, cursor: "pointer" }}>Estimate</button>
-
-              {calcResult && (
-                <div style={{ background: "#f7fafd", padding: 10, borderRadius: 8 }}>
-                  <div style={{ fontSize: 13 }}>Growth: <strong>{calcResult.growthPercent.toFixed(2)}%</strong></div>
-                  <div style={{ fontSize: 13 }}>Est. Value: <strong>₹{calcResult.total.toFixed(2)}</strong></div>
-                </div>
-              )}
-
-              <button onClick={handleInvest} style={{ background: "#22a745", color: "#fff", border: "none", padding: "10px", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>Buy</button>
-
-              <button onClick={sellHoldingsForSelectedFund} style={{ background: "#fff", border: "1px solid #ddd", padding: 10, borderRadius: 8, cursor: "pointer" }}>Sell</button>
-
-            </div>
-            <hr style={{ margin: "12px 0" }} />
-            <h5 style={{ margin: "6px 0" }}>Positions</h5>
-            <div style={{ maxHeight: 220, overflowY: "auto", display: "grid", gap: 8 }}>
-              {investments.length === 0 ? (
-                <div style={{ color: "#777" }}>No positions yet</div>
-              ) : investments.map((inv) => (
-                <div key={inv.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 8, borderRadius: 8, border: "1px solid #f0f0f0" }}>
-                  <div>
-                    <div style={{ fontWeight: 700 }}>{inv.fundName.split(" - ")[0]}</div>
-                    <div style={{ fontSize: 12, color: "#666" }}>{new Date(inv.investmentDate).toLocaleDateString()}</div>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontWeight: 700 }}>₹{(inv.amount || 0).toFixed(0)}</div>
-                    <div style={{ fontSize: 12, color: "#22a745" }}>{inv.expectedReturn ? `${inv.expectedReturn.toFixed(2)}%` : "—"}</div>
-                  </div>
-                </div>
-              ))}
+            <div style={{ marginTop: 4 }}>
+              <SipCalculator
+                initialAmount={5000}
+                initialReturn={12}
+                initialYears={10}
+                onCalculate={(res) => {
+                  console.log('SIP result', res);
+                }}
+              />
             </div>
           </div>
         </section>
 
+        {/* Full-width Quick Order card placed before Holdings (horizontal layout) */}
         <section style={{ marginTop: 18 }}>
+          <div style={{ background: "var(--card-bg, #fff)", borderRadius: 12, padding: 14, boxShadow: "0 6px 20px rgba(0,0,0,0.04)", marginBottom: 14 }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 260, flex: '1 1 260px' }}>
+                <div style={{ fontSize: 13, color: '#555' }}>Fund</div>
+                <div style={{ fontWeight: 700, color: '#073b4c', marginTop: 6 }}>{selectedFund ? selectedFund.schemeName.split(' - ')[0] : '—'}</div>
+              </div>
+
+              <div style={{ flex: '1 1 180px', minWidth: 160 }}>
+                <input type="number" placeholder="Amount (₹)" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ ...inputStyle, width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid #c4e1f7', background: '#f5fbff' }} />
+              </div>
+
+              <div style={{ flex: '0 0 140px' }}>
+                <select value={selectedDuration} onChange={(e) => setSelectedDuration(+e.target.value)} style={{ ...inputStyle, width: '140px', padding: '10px 12px', borderRadius: 10, border: '1px solid #c4e1f7', background: '#f5fbff' }}>
+                  {durations.map((d) => (
+                    <option key={d.months} value={d.months}>{d.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginLeft: 'auto', flexWrap: 'wrap' }}>
+                <button onClick={calculateReturn} style={{ background: '#0077cc', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 10, cursor: 'pointer', boxShadow: '0 6px 18px #0077cc22', fontWeight: 700 }}>Estimate</button>
+                <button onClick={handleInvest} style={{ background: '#22a745', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 10, cursor: 'pointer', boxShadow: '0 6px 18px #22a74522', fontWeight: 700 }}>Buy</button>
+                <button onClick={sellHoldingsForSelectedFund} style={{ background: '#fff', border: '1px solid #ddd', padding: '10px 16px', borderRadius: 10, cursor: 'pointer' }}>Sell</button>
+              </div>
+            </div>
+
+            {/* Quick preset buttons row */}
+            <div style={{ marginTop: 12, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {[500,1000,3000,5000,10000].map((amt) => {
+                const active = Number(amount) === amt;
+                return (
+                  <button key={amt} onClick={() => setAmount(String(amt))} style={{ minWidth: 96, padding: '8px 10px', borderRadius: 999, border: active ? '1px solid #57b0ff' : '1px solid #e6eef8', background: active ? '#eaf6ff' : '#fff', color: active ? '#054a72' : '#0b4f6c', fontWeight: 700, boxShadow: active ? '0 6px 18px rgba(11,155,214,0.08)' : '0 2px 6px rgba(12,40,62,0.03)', cursor: 'pointer' }}>
+                    ₹{amt.toLocaleString()}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <h4 style={{ marginBottom: 10 }}>Holdings</h4>
           <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 6px 20px rgba(0,0,0,0.04)", overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>

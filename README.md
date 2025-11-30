@@ -10,7 +10,7 @@ A comprehensive mutual fund investment platform built with React and Vite, featu
   - Investor Dashboard - Browse and invest in mutual funds
   - Advisor Section - Connect with certified financial advisors
   - Data Analyst Dashboard - Visualize investment trends
-- **Real-time Data**: Integration with MFAPI for live mutual fund NAV data
+-- **Real-time Data**: (No external API enabled) NAV data is simulated locally in the front-end for demo purposes
 - **Investment Calculator**: Calculate returns based on historical NAV data
 - **Interactive Charts**: Visualize fund performance using Recharts
 
@@ -96,7 +96,7 @@ mutual-fund-platform/
 - **React Router** - Client-side routing
 - **Vite** - Build tool and dev server
 - **Recharts** - Data visualization
-- **MFAPI** - Mutual fund data API
+-- (No external MF data API configured)
 
 ## Key Changes from Previous Version
 
