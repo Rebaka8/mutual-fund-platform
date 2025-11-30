@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { fetchNav } from '../services/mfninjas';
 import { Navigate } from "react-router-dom";
 import Logo from "./Logo.png";
 
@@ -12,7 +13,7 @@ function getUserRole(email) {
 }
 
 export default function AdminPanel({ currentUser }) {
-  const storedCurrent = typeof window !== 'undefined' ? sessionStorage.getItem('currentUser') : null;
+  const storedCurrent = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
   const parsedStored = storedCurrent ? JSON.parse(storedCurrent) : null;
   const currentEmail = typeof currentUser === 'string'
     ? currentUser
@@ -23,21 +24,13 @@ export default function AdminPanel({ currentUser }) {
     return <Navigate to={`/${userRole}`} />;
   }
 
-  // Demo users
-  const defaultUsers = [
-    { name: "Rebaka Meda", role: "Admin", email: "rebakameda@gmail.com", registeredOn: "2023-02-14", status: "Active" },
-    { name: "Asha Rao", role: "Investor", email: "asha.rao@example.com", registeredOn: "2024-06-15", status: "Active" },
-    { name: "Vikram Singh", role: "Investor", email: "vikram.singh@example.com", registeredOn: "2022-12-10", status: "Active" },
-    { name: "Priya Patel", role: "Financial Advisor", email: "priya.patel@example.com", registeredOn: "2023-11-03", status: "Inactive" },
-    { name: "Rajesh Kumar", role: "Data Analyst", email: "rajesh.kumar@example.com", registeredOn: "2025-03-27", status: "Active" }
-  ];
-
+  // Users: load from localStorage only (no fake demo users)
   const [users, setUsers] = useState(() => {
     try {
-      const stored = localStorage.getItem('registeredUsers') || sessionStorage.getItem('registeredUsers');
-      return stored ? JSON.parse(stored) : defaultUsers;
+      const stored = localStorage.getItem('registeredUsers');
+      return stored ? JSON.parse(stored) : [];
     } catch (e) {
-      return defaultUsers;
+      return [];
     }
   });
 
@@ -45,15 +38,13 @@ export default function AdminPanel({ currentUser }) {
   const [selectedInvestments, setSelectedInvestments] = useState([]);
 
   useEffect(() => {
-    if (!localStorage.getItem('registeredUsers') && !sessionStorage.getItem('registeredUsers')) {
-      localStorage.setItem('registeredUsers', JSON.stringify(defaultUsers));
-    }
+    // no-op: we keep registeredUsers only if explicitly created by signups
   }, []);
 
   const viewInvestments = (user) => {
     setSelectedUser(user);
     const invKey = `investments_${user.email}`;
-    const stored = sessionStorage.getItem(invKey);
+    const stored = localStorage.getItem(invKey);
     try {
       const arr = stored ? JSON.parse(stored) : [];
       setSelectedInvestments(arr);
@@ -65,16 +56,40 @@ export default function AdminPanel({ currentUser }) {
   const toggleStatus = (email) => {
     const updated = users.map(u => (u.email === email ? { ...u, status: u.status === 'Active' ? 'Inactive' : 'Active' } : u));
     setUsers(updated);
-    sessionStorage.setItem('registeredUsers', JSON.stringify(updated));
+    localStorage.setItem('registeredUsers', JSON.stringify(updated));
   };
-
-  // Simple market watch data (placeholder)
-  const marketWatch = [
-    { symbol: 'NIFTY', price: 23100.45, change: 0.72 },
-    { symbol: 'SENSEX', price: 76532.12, change: -0.21 },
-    { symbol: 'INFY', price: 1820.5, change: 1.12 },
-    { symbol: 'HDFC', price: 3052.1, change: -0.45 }
-  ];
+  // Market watch: derive a small list of scheme codes to show latest NAVs
+  const [marketWatch, setMarketWatch] = useState([]);
+  useEffect(() => {
+    // Popular scheme codes to display (identifiers only)
+    const popular = ['117717','125497','140006','120304'];
+    let cancelled = false;
+    (async () => {
+      try {
+        const results = await Promise.all(popular.map(code => fetchNav(code).catch(e => ({ error: String(e) }))));
+        if (cancelled) return;
+        const mw = popular.map((code, idx) => {
+          const res = results[idx];
+          let price = null; let change = null;
+          try {
+            if (res) {
+              if (Array.isArray(res) && res.length) {
+                const last = res[res.length - 1];
+                price = Number(last.nav || last.value || last.price || 0) || null;
+              } else if (res.latest_nav || res.nav) {
+                price = Number(res.latest_nav || res.nav || res.value || 0) || null;
+              }
+            }
+          } catch (e) { price = null; }
+          return { symbol: code, price, change };
+        });
+        setMarketWatch(mw);
+      } catch (e) {
+        console.warn('Market watch fetch failed', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: 'Inter, system-ui, Arial', background: '#f4f7fb' }}>

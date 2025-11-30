@@ -14,21 +14,21 @@ export default function LoginPage({ onLogin, onBack }) {
       return;
     }
 
-    // Get stored users from session storage
-    const usersData = sessionStorage.getItem("users");
+    // Get stored users from local storage
+    const usersData = localStorage.getItem("users");
     const users = usersData ? JSON.parse(usersData) : [];
     
     // Find user with matching email and password
     const user = users.find(u => u.email === email && u.password === password);
     
     if (user) {
-      // Store current logged-in user
-      sessionStorage.setItem("currentUser", JSON.stringify(user));
+      // Store current logged-in user in localStorage for persistence
+      localStorage.setItem("currentUser", JSON.stringify(user));
       // Persist user to registeredUsers so admin can see them later
       try {
         const regKey = 'registeredUsers';
         // prefer localStorage for persistence across browser sessions
-        const stored = localStorage.getItem(regKey) || sessionStorage.getItem(regKey);
+        const stored = localStorage.getItem(regKey);
         const regUsers = stored ? JSON.parse(stored) : [];
         const exists = regUsers.some(u => u.email === user.email);
         if (!exists) {

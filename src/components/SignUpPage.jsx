@@ -35,13 +35,13 @@ export default function SignUpPage({ onSignUp, onBack }) {
     // Sanitize fullname input
     const sanitizedFullname = fullname.trim().replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
 
-    // Get existing users from session storage
+    // Get existing users from local storage
     let users = [];
     try {
-      const usersData = sessionStorage.getItem("users");
+      const usersData = localStorage.getItem("users");
       users = usersData ? JSON.parse(usersData) : [];
     } catch (err) {
-      console.error("Error parsing users from sessionStorage:", err);
+      console.error("Error parsing users from localStorage:", err);
       setError("Storage error. Please try again.");
       return;
     }
@@ -63,17 +63,29 @@ export default function SignUpPage({ onSignUp, onBack }) {
     // Save to storage
     try {
       users.push(newUser);
-      sessionStorage.setItem("users", JSON.stringify(users));
+      localStorage.setItem("users", JSON.stringify(users));
       
       setSuccess("Account created successfully! Redirecting to login...");
       
       // Auto-login after 1.5 seconds
       setTimeout(() => {
-        sessionStorage.setItem("currentUser", JSON.stringify(newUser));
+        localStorage.setItem("currentUser", JSON.stringify(newUser));
+        // also add to registeredUsers for admin visibility
+        try {
+          const regKey = 'registeredUsers';
+          const stored = localStorage.getItem(regKey);
+          const regUsers = stored ? JSON.parse(stored) : [];
+          const exists = regUsers.some(u => u.email === newUser.email);
+          if (!exists) {
+            const newUserBrief = { name: newUser.fullname || newUser.email.split('@')[0], role: 'Investor', email: newUser.email, registeredOn: new Date().toISOString().slice(0,10), status: 'Active' };
+            regUsers.push(newUserBrief);
+            localStorage.setItem(regKey, JSON.stringify(regUsers));
+          }
+        } catch (err) {}
         onSignUp && onSignUp(email);
       }, 1500);
     } catch (err) {
-      console.error("Error saving user to sessionStorage:", err);
+      console.error("Error saving user to localStorage:", err);
       setError("Failed to create account. Please try again.");
     }
   };

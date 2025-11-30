@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
-const advisorData = [
+const defaultAdvisors = [
   {
     id: 1,
     name: "Nirav Mehta",
@@ -21,10 +21,37 @@ const advisorData = [
     expertise: "Debt & Hybrid Funds",
     clients: 110,
   },
-  // Add more advisors as needed
 ];
 
 export default function AdvisorSection() {
+  const [advisors, setAdvisors] = useState(defaultAdvisors);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("advisors");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) setAdvisors(parsed);
+      }
+    } catch (err) {
+      // ignore parse errors and keep defaults
+    }
+  }, []);
+
+  function handleBook(advisor) {
+    // simple UX: open mail client if advisor has an email, otherwise copy name to clipboard
+    if (advisor.email) {
+      window.location.href = `mailto:${advisor.email}?subject=Requesting%20a%20Consultation`;
+      return;
+    }
+    try {
+      navigator.clipboard && navigator.clipboard.writeText(advisor.name);
+      alert(`${advisor.name} copied to clipboard. Share this with your support team to schedule.`);
+    } catch (e) {
+      alert("Please contact support to schedule a session.");
+    }
+  }
+
   return (
     <div style={sectionBackdrop}>
       <div style={sectionHeader}>
@@ -45,34 +72,38 @@ export default function AdvisorSection() {
         </div>
       </div>
       <div style={advisorListWrapper}>
-        {advisorData.map(advisor => (
+        {advisors.map(advisor => (
           <div key={advisor.id} style={advisorCard}>
             <img src={advisor.avatar} alt={advisor.name} style={{
               width: 66, height: 66, borderRadius: "50%", marginBottom: 16, boxShadow: "0 2px 10px #b0cff833"
             }} />
             <div style={{ fontSize: 19, fontWeight: 700, color: "#232d3d" }}>{advisor.name}</div>
             <div style={{ fontSize: 14, margin: "3px 0 10px 0", color: "#2a7abe" }}>{advisor.role}</div>
-            <div style={{ fontSize: 15, color: "#444", marginBottom: 8 }}>
-              <strong>Experience:</strong> {advisor.experience}
-            </div>
-            <div style={{ fontSize: 15, color: "#444", marginBottom: 8 }}>
-              <strong>Expertise:</strong> {advisor.expertise}
-            </div>
+            {advisor.experience && (
+              <div style={{ fontSize: 15, color: "#444", marginBottom: 8 }}>
+                <strong>Experience:</strong> {advisor.experience}
+              </div>
+            )}
+            {advisor.expertise && (
+              <div style={{ fontSize: 15, color: "#444", marginBottom: 8 }}>
+                <strong>Expertise:</strong> {advisor.expertise}
+              </div>
+            )}
             <div style={{
               display: "flex", justifyContent: "center", alignItems: "center", gap: 10
             }}>
               <span style={{
                 background: "#edf6ff", color: "#0077cc", borderRadius: 8, padding: "2px 12px", fontWeight: 600, fontSize: 14
               }}>
-                {advisor.rating} ★
+                {advisor.rating ?? "--"} ★
               </span>
               <span style={{
                 background: "#f2f2f2", color: "#2c2c2c", borderRadius: 8, padding: "2px 12px", fontWeight: 500, fontSize: 14
               }}>
-                {advisor.clients} Clients
+                {advisor.clients ?? "--"} Clients
               </span>
             </div>
-            <button style={bookBtn}>Book a Session</button>
+            <button style={bookBtn} onClick={() => handleBook(advisor)}>Book a Session</button>
           </div>
         ))}
       </div>

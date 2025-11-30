@@ -12,11 +12,15 @@ import DataAnalystDashboard from "./components/DataAnalystDashboard";
 import ProfilePage from "./components/ProfilePage";
 import Logo from "./components/Logo.png"; // Adjust path as needed
 
-function getUserName(email) {
+function getUserName(user) {
+  if (!user) return "";
+  const email = typeof user === 'string' ? user : (user.email || user.fullname || user.name || '');
   if (!email) return "";
-  return email.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ').replace(/^./, s => s.toUpperCase());
+  const base = (email.includes('@') ? email.split('@')[0] : email).replace(/[^a-zA-Z0-9]/g, ' ');
+  return base.charAt(0).toUpperCase() + base.slice(1);
 }
-function getUserRole(email) {
+function getUserRole(user) {
+  const email = typeof user === 'string' ? user : (user.email || '');
   if (!email) return "investor";
   if (email === "rebakameda@gmail.com") return "admin";
   if (email === "userb@example.com") return "advisor";
@@ -31,20 +35,44 @@ function App() {
 
   // Check for existing session on component mount
   useEffect(() => {
-    const storedUser = sessionStorage.getItem("currentUser");
+    const storedUser = localStorage.getItem("currentUser");
     if (storedUser) {
       try {
-        const user = JSON.parse(storedUser);
-        setCurrentUser(user.email);
+        const parsed = JSON.parse(storedUser);
+        if (typeof parsed === 'string') setCurrentUser(parsed);
+        else if (parsed && parsed.email) setCurrentUser(parsed.email);
+        else if (parsed && (parsed.fullname || parsed.name)) setCurrentUser(parsed.fullname || parsed.name);
+        else setCurrentUser(null);
       } catch (error) {
         console.error("Error parsing stored user:", error);
-        sessionStorage.removeItem("currentUser");
+        localStorage.removeItem("currentUser");
       }
     }
   }, []);
 
+  // Safe setter: accept either an email string or a user object and normalize to email string
+  const safeSetCurrentUser = (val) => {
+    if (!val) {
+      try { localStorage.removeItem('currentUser'); } catch (e) {}
+      setCurrentUser(null);
+      return;
+    }
+    if (typeof val === 'string') {
+      setCurrentUser(val);
+      return;
+    }
+    if (typeof val === 'object') {
+      if (val.email) { setCurrentUser(val.email); return; }
+      if (val.fullname) { setCurrentUser(val.fullname); return; }
+      if (val.name) { setCurrentUser(val.name); return; }
+      try { setCurrentUser(JSON.stringify(val)); } catch (e) { setCurrentUser(String(val)); }
+      return;
+    }
+    setCurrentUser(String(val));
+  };
+
   const handleLogout = () => {
-    sessionStorage.removeItem("currentUser");
+    localStorage.removeItem("currentUser");
     setCurrentUser(null);
     setAuthMode("landing");
   };
@@ -79,9 +107,9 @@ function App() {
             authMode === "landing" ? (
               <AuthLanding onLogin={() => setAuthMode("login")} onSignup={() => setAuthMode("signup")} />
             ) : authMode === "login" ? (
-              <LoginPage onBack={() => setAuthMode("landing")} onLogin={setCurrentUser} />
+              <LoginPage onBack={() => setAuthMode("landing")} onLogin={(v) => safeSetCurrentUser(v)} />
             ) : (
-              <SignUpPage onBack={() => setAuthMode("landing")} onSignUp={setCurrentUser} />
+              <SignUpPage onBack={() => setAuthMode("landing")} onSignUp={(v) => safeSetCurrentUser(v)} />
             )
           } />
           <Route path="*" element={<Navigate to="/" />} />

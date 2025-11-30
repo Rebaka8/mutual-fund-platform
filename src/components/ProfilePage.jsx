@@ -22,13 +22,13 @@ export default function ProfilePage({ onNotify }) {
   const [investments, setInvestments] = useState([]);
 
   useEffect(() => {
-    const currentUserData = sessionStorage.getItem("currentUser");
+    const currentUserData = localStorage.getItem("currentUser");
     if (currentUserData) {
       const userData = JSON.parse(currentUserData);
       setUser(userData);
       setEditedName(userData.fullname || "");
       const userInvestmentsKey = `investments_${userData.email}`;
-      const storedInvestments = sessionStorage.getItem(userInvestmentsKey) || localStorage.getItem(userInvestmentsKey);
+      const storedInvestments = localStorage.getItem(userInvestmentsKey);
       if (storedInvestments) setInvestments(JSON.parse(storedInvestments));
     }
   }, []);
@@ -61,10 +61,10 @@ export default function ProfilePage({ onNotify }) {
     if (editedPassword && editedPassword.length < 6) { setError("Password must be at least 6 characters long."); return; }
     if (editedPassword && editedPassword !== confirmPassword) { setError("Passwords do not match."); return; }
     const updatedUser = { ...user, fullname: editedName, ...(editedPassword && { password: editedPassword }) };
-    sessionStorage.setItem("currentUser", JSON.stringify(updatedUser));
-    const usersData = sessionStorage.getItem("users"); const users = usersData ? JSON.parse(usersData) : [];
+    localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+    const usersData = localStorage.getItem("users"); const users = usersData ? JSON.parse(usersData) : [];
     const userIndex = users.findIndex(u => u.email === user.email);
-    if (userIndex !== -1) { users[userIndex] = updatedUser; sessionStorage.setItem("users", JSON.stringify(users)); }
+    if (userIndex !== -1) { users[userIndex] = updatedUser; localStorage.setItem("users", JSON.stringify(users)); }
     setUser(updatedUser); setIsEditing(false); setEditedPassword(""); setConfirmPassword(""); setMessage("Profile updated successfully!"); setTimeout(()=>setMessage(""),3000);
   };
 
@@ -89,13 +89,13 @@ export default function ProfilePage({ onNotify }) {
                   if (!amt) return;
                   const a = parseFloat(amt.replace(/[^0-9\.]/g, ''));
                   if (isNaN(a) || a <= 0) { window.alert('Invalid amount'); return; }
-                  const userData = JSON.parse(sessionStorage.getItem('currentUser'));
+                  const userData = JSON.parse(localStorage.getItem('currentUser'));
                   const key = `investments_${userData.email}`;
                   const newInv = { id: Date.now(), fundName: 'Wallet Top-up', amount: a, investmentDate: new Date().toISOString(), currentNAV: 0 };
-                  const stored = sessionStorage.getItem(key) || localStorage.getItem(key);
+                  const stored = localStorage.getItem(key);
                   const arr = stored ? JSON.parse(stored) : [];
                   arr.push(newInv);
-                  sessionStorage.setItem(key, JSON.stringify(arr));
+                  localStorage.setItem(key, JSON.stringify(arr));
                   setInvestments(arr);
                   if (typeof onNotify === 'function') onNotify(`Added ₹${a.toLocaleString()} to account`);
                 }}>Add Funds</button>
@@ -104,13 +104,13 @@ export default function ProfilePage({ onNotify }) {
                   if (!amt) return;
                   const a = parseFloat(amt.replace(/[^0-9\.]/g, ''));
                   if (isNaN(a) || a <= 0) { window.alert('Invalid amount'); return; }
-                  const userData = JSON.parse(sessionStorage.getItem('currentUser'));
+                  const userData = JSON.parse(localStorage.getItem('currentUser'));
                   const key = `investments_${userData.email}`;
                   const newInv = { id: Date.now(), fundName: 'Withdrawal', amount: -a, investmentDate: new Date().toISOString(), currentNAV: 0 };
-                  const stored = sessionStorage.getItem(key) || localStorage.getItem(key);
+                  const stored = localStorage.getItem(key);
                   const arr = stored ? JSON.parse(stored) : [];
                   arr.push(newInv);
-                  sessionStorage.setItem(key, JSON.stringify(arr));
+                  localStorage.setItem(key, JSON.stringify(arr));
                   setInvestments(arr);
                   if (typeof onNotify === 'function') onNotify(`Withdrew ₹${a.toLocaleString()} from account`, 'info');
                 }}>Withdraw</button>
@@ -132,13 +132,13 @@ export default function ProfilePage({ onNotify }) {
                 if (!amt) return;
                 const a = parseFloat(amt.replace(/[^0-9\.]/g, ''));
                 if (isNaN(a) || a <= 0) { window.alert('Invalid amount'); return; }
-                const userData = JSON.parse(sessionStorage.getItem('currentUser'));
+                const userData = JSON.parse(localStorage.getItem('currentUser'));
                 const key = `investments_${userData.email}`;
                 const newInv = { id: Date.now(), fundName: 'Top-up', amount: a, investmentDate: new Date().toISOString(), currentNAV: 0 };
-                const stored = sessionStorage.getItem(key) || localStorage.getItem(key);
+                const stored = localStorage.getItem(key);
                 const arr = stored ? JSON.parse(stored) : [];
                 arr.push(newInv);
-                sessionStorage.setItem(key, JSON.stringify(arr));
+                localStorage.setItem(key, JSON.stringify(arr));
                 setInvestments(arr);
                 if (typeof onNotify === 'function') onNotify(`Top-up: ₹${a.toLocaleString()}`);
               }}>Top up</button>
@@ -147,13 +147,13 @@ export default function ProfilePage({ onNotify }) {
                 if (!amt) return;
                 const a = parseFloat(amt.replace(/[^0-9\.]/g, ''));
                 if (isNaN(a) || a <= 0) { window.alert('Invalid amount'); return; }
-                const userData = JSON.parse(sessionStorage.getItem('currentUser'));
+                const userData = JSON.parse(localStorage.getItem('currentUser'));
                 const key = `investments_${userData.email}`;
                 const newInv = { id: Date.now(), fundName: 'Withdraw', amount: -a, investmentDate: new Date().toISOString(), currentNAV: 0 };
-                const stored = sessionStorage.getItem(key) || localStorage.getItem(key);
+                const stored = localStorage.getItem(key);
                 const arr = stored ? JSON.parse(stored) : [];
                 arr.push(newInv);
-                sessionStorage.setItem(key, JSON.stringify(arr));
+                localStorage.setItem(key, JSON.stringify(arr));
                 setInvestments(arr);
                 if (typeof onNotify === 'function') onNotify(`Withdrawn: ₹${a.toLocaleString()}`);
               }}>Withdraw</button>

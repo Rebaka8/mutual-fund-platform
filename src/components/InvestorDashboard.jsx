@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import SipCalculator from './sipCalculator';
+import { fetchNav } from '../services/mfninjas';
 import {
   LineChart,
   Line,
@@ -11,7 +12,7 @@ import {
   CartesianGrid,
 } from "recharts";
 
-const fundsToShow = [
+const initialFundsToShow = [
   { schemeCode: "125497", schemeName: "SBI Bluechip Fund - Direct (Growth)", category: "Equity", return1yr: "12.80%" },
   { schemeCode: "118297", schemeName: "HDFC Equity Fund - Direct (Growth)", category: "Equity", return1yr: "13.17%" },
   { schemeCode: "102885", schemeName: "ICICI Prudential Bluechip - Direct (Growth)", category: "Equity", return1yr: "11.98%" },
@@ -62,6 +63,43 @@ const portfolioValue = {
 };
 
 function InvestorDashboard() {
+  // funds list (start with bundled sample list, then attempt to enrich with live API data)
+  const [fundsToShowState, setFundsToShowState] = useState(initialFundsToShow);
+
+  useEffect(() => {
+    // attempt to fetch latest NAV for each fund to enrich UI (non-blocking)
+    const loadLatestNavs = async () => {
+      try {
+        const codes = initialFundsToShow.map(f => f.schemeCode).filter(Boolean);
+        if (codes.length === 0) return;
+        // Use fetchNavBulk if available (returns array of responses or errors)
+        if (typeof fetchNav === 'function') {
+          const results = await Promise.all(codes.map(code => fetchNav(code).catch(e => ({ error: String(e) }))));
+          const updated = initialFundsToShow.map((f, idx) => {
+            const res = results[idx];
+            let latestNav = null;
+            try {
+              if (res) {
+                if (Array.isArray(res) && res.length) {
+                  // choose last element or object containing nav
+                  const s = res[res.length - 1];
+                  latestNav = Number(s.nav || s.value || s.price || s.latest_nav || 0) || null;
+                } else if (res.latest_nav || res.nav) {
+                  latestNav = Number(res.latest_nav || res.nav || res.value || 0) || null;
+                }
+              }
+            } catch (e) { latestNav = null; }
+            return Object.assign({}, f, latestNav ? { latestNav } : {});
+          });
+          setFundsToShowState(updated);
+        }
+      } catch (e) {
+        // ignore — UI will keep showing fallback static list
+        console.warn('Failed to enrich funds list from API', e);
+      }
+    };
+    loadLatestNavs();
+  }, []);
   // Search UI state
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -74,7 +112,7 @@ function InvestorDashboard() {
     const q = (query || searchQuery || '').toLowerCase().trim();
     const cat = (category || searchCategory || '').trim();
     // Combine funds and holdings for suggestions
-    const funds = fundsToShow.filter(f => (
+    const funds = fundsToShowState.filter(f => (
       (q === '' || f.schemeName.toLowerCase().includes(q) || f.schemeCode.includes(q) || f.category.toLowerCase().includes(q))
       && (cat === '' || f.category === cat)
     ));
@@ -112,7 +150,7 @@ function InvestorDashboard() {
       openFund(item);
       setSelectedFund(item);
     } else if (item.fundCode) {
-      const f = fundsToShow.find(ff => ff.schemeCode === item.fundCode) || fundsToShow[0];
+      const f = fundsToShowState.find(ff => ff.schemeCode === item.fundCode) || fundsToShowState[0];
       if (f) openFund(f);
     }
     setSearchQuery(''); setSearchResults([]); setShowSuggestions(false); setSelectedIndex(-1);
@@ -160,7 +198,7 @@ function InvestorDashboard() {
     try { setSelectedPortfolio && setSelectedPortfolio(key); } catch (e) {}
     const codes = portfolioMap[key] || [];
     const code = codes[0];
-    const fund = fundsToShow.find(f => f.schemeCode === code) || fundsToShow[0];
+    const fund = fundsToShowState.find(f => f.schemeCode === code) || fundsToShowState[0];
     if (fund) {
       setSelectedFund(fund);
       openFund(fund);
@@ -202,14 +240,14 @@ function InvestorDashboard() {
         // show portfolio funds and open first representative fund
         setSelectedPortfolio(matchedPortfolio);
         const codes = portfolioMap[matchedPortfolio] || [];
-        const fund = fundsToShow.find(f => f.schemeCode === codes[0]) || fundsToShow[0];
+        const fund = fundsToShowState.find(f => f.schemeCode === codes[0]) || fundsToShowState[0];
         if (fund) openFund(fund);
         setQuickSearchQuery('');
         return;
       }
 
       // otherwise try to find a single fund by name or code
-      const f = fundsToShow.find(f => (f.schemeName && f.schemeName.toLowerCase().includes(q)) || (f.schemeCode && f.schemeCode.includes(q)));
+      const f = fundsToShowState.find(f => (f.schemeName && f.schemeName.toLowerCase().includes(q)) || (f.schemeCode && f.schemeCode.includes(q)));
       if (f) {
         setSelectedFund(f);
         openFund(f);
@@ -219,7 +257,7 @@ function InvestorDashboard() {
 
       // fallback: tokenized name matching
       const parts = q.split(/\s+/).filter(Boolean);
-      const f2 = fundsToShow.find(ff => parts.every(p => (ff.schemeName || '').toLowerCase().includes(p)));
+      const f2 = fundsToShowState.find(ff => parts.every(p => (ff.schemeName || '').toLowerCase().includes(p)));
       if (f2) {
         setSelectedFund(f2);
         openFund(f2);
@@ -250,11 +288,11 @@ function InvestorDashboard() {
   // Load investments for logged in user (if any)
   useEffect(() => {
     try {
-      const currentUserData = sessionStorage.getItem("currentUser");
+      const currentUserData = localStorage.getItem("currentUser");
       if (currentUserData) {
         const user = JSON.parse(currentUserData);
         const key = `investments_${user.email}`;
-        const stored = sessionStorage.getItem(key);
+        const stored = localStorage.getItem(key);
         if (stored) setInvestments(JSON.parse(stored));
       }
     } catch (e) {
@@ -275,7 +313,51 @@ function InvestorDashboard() {
     setCalcResult(null);
     setAmount("");
     try {
-      // External API calls removed — generate a synthetic NAV history for offline/demo use
+      // Try to fetch real NAVs from the API service first
+      let data = null;
+      try {
+        data = await fetchNav(fund.schemeCode);
+      } catch (apiErr) {
+        // log and fall back to synthetic
+        console.warn('MF API fetch failed, falling back to synthetic data:', apiErr && apiErr.message ? apiErr.message : apiErr);
+        data = null;
+      }
+
+      // normalize API response if present
+      if (data) {
+        let series = [];
+        try {
+          // common shapes: array of {date, nav} or {nav_date, nav} or wrapper like {data: [...]}
+          const arr = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : null);
+          if (arr && arr.length > 0) {
+            // detect keys
+            const sample = arr[0];
+            const dateKey = Object.keys(sample).find(k => /date|time|nav_date/i.test(k)) || Object.keys(sample).find(k => k.toLowerCase().includes('date'));
+            const navKey = Object.keys(sample).find(k => /nav|value|price|close/i.test(k)) || Object.keys(sample).find(k => k.toLowerCase().includes('nav'));
+            series = arr.map(item => {
+              const rawDate = item[dateKey] || item.date || item.timestamp || item.nav_date || item.time;
+              const d = rawDate ? new Date(rawDate) : null;
+              const dateStr = d && !isNaN(d) ? d.toISOString().split('T')[0] : (item.date || item.nav_date || String(Date.now()));
+              const nav = Number(item[navKey] || item.nav || item.value || item.price || 0);
+              return { date: dateStr, nav };
+            }).filter(p => p && !isNaN(p.nav));
+          } else if (data.latest_nav || data.nav) {
+            const v = Number(data.latest_nav || data.nav || data.value || 0);
+            series = [{ date: new Date().toISOString().split('T')[0], nav: v }];
+          }
+        } catch (normErr) {
+          console.warn('Failed to normalize API response', normErr);
+          series = [];
+        }
+
+        if (series && series.length > 1) {
+          setNavData(series);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Fallback: generate synthetic NAV history for offline/demo use
       const points = [];
       const seed = Number((fund && fund.schemeCode && String(fund.schemeCode).slice(-3)) || 100);
       const base = 100 + (seed % 50);
@@ -291,8 +373,9 @@ function InvestorDashboard() {
       setNavData(points);
     } catch (e) {
       setNavData([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const calculateReturn = () => {
@@ -312,7 +395,7 @@ function InvestorDashboard() {
   const handleInvest = () => {
     if (!amount || parseFloat(amount) <= 0) return alert("Please enter a valid investment amount.");
     if (!selectedFund) return alert("Select a fund first.");
-    const currentUserData = sessionStorage.getItem("currentUser");
+    const currentUserData = localStorage.getItem("currentUser");
     if (!currentUserData) return alert("Please login to invest.");
     const user = JSON.parse(currentUserData);
     const key = `investments_${user.email}`;
@@ -330,7 +413,7 @@ function InvestorDashboard() {
     const updated = [...investments, newInvestment];
     setInvestments(updated);
     try {
-      sessionStorage.setItem(key, JSON.stringify(updated));
+      localStorage.setItem(key, JSON.stringify(updated));
     } catch (e) {}
     alert(`Successfully invested ₹${amount} in ${selectedFund.schemeName}!`);
   };
@@ -339,10 +422,10 @@ function InvestorDashboard() {
     const updated = investments.filter((i) => i.id !== id);
     setInvestments(updated);
     try {
-      const currentUserData = sessionStorage.getItem("currentUser");
+      const currentUserData = localStorage.getItem("currentUser");
       if (currentUserData) {
         const user = JSON.parse(currentUserData);
-        sessionStorage.setItem(`investments_${user.email}`, JSON.stringify(updated));
+        localStorage.setItem(`investments_${user.email}`, JSON.stringify(updated));
       }
     } catch (e) {}
   };
@@ -354,10 +437,10 @@ function InvestorDashboard() {
     const updated = investments.filter((i) => i.fundCode !== selectedFund.schemeCode);
     setInvestments(updated);
     try {
-      const currentUserData = sessionStorage.getItem("currentUser");
+      const currentUserData = localStorage.getItem("currentUser");
       if (currentUserData) {
         const user = JSON.parse(currentUserData);
-        sessionStorage.setItem(`investments_${user.email}`, JSON.stringify(updated));
+        localStorage.setItem(`investments_${user.email}`, JSON.stringify(updated));
       }
     } catch (e) {}
     alert("Sold holdings for this fund (simulated)");
@@ -418,7 +501,7 @@ function InvestorDashboard() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {portfolios.map((p) => {
                   const codes = portfolioMap[p.key] || [];
-                  const sample = fundsToShow.find(f => f.schemeCode === codes[0]) || fundsToShow[0];
+                  const sample = fundsToShowState.find(f => f.schemeCode === codes[0]) || fundsToShowState[0];
                   return (
                     <button key={p.key} onClick={() => showPortfolio(p.key)} style={{ width: '100%', borderRadius: 10, padding: '12px', textAlign: 'left', border: selectedPortfolio === p.key ? '2px solid #0077cc' : '1px solid #eef6fb', background: '#fff', cursor: 'pointer' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -427,7 +510,9 @@ function InvestorDashboard() {
                           <div style={{ fontSize: 12, color: '#666', marginTop: 6 }}>{sample.schemeName.split(' - ')[0]}</div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
-                          <div style={{ marginTop: 8, fontSize: 12, color: '#22a745', fontWeight: 800 }}>{sample.return1yr}</div>
+                          <div style={{ marginTop: 8, fontSize: 12, color: '#22a745', fontWeight: 800 }}>
+                            {sample.latestNav ? `₹${Number(sample.latestNav).toFixed(2)}` : sample.return1yr}
+                          </div>
                           <div style={{ fontSize: 11, color: '#999' }}>{sample.category}</div>
                         </div>
                       </div>
@@ -440,14 +525,16 @@ function InvestorDashboard() {
                 {selectedPortfolio ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {(portfolioMap[selectedPortfolio] || []).map((code) => {
-                      const fund = fundsToShow.find(f => f.schemeCode === code);
+                      const fund = fundsToShowState.find(f => f.schemeCode === code);
                       if (!fund) return null;
                       return (
                         <button key={code} onClick={() => openFund(fund)} style={{ textAlign: 'left', padding: '10px 8px', borderRadius: 8, border: '1px solid #f0f0f0', background: selectedFund && selectedFund.schemeCode === fund.schemeCode ? '#f0f8ff' : 'transparent', cursor: 'pointer' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ fontWeight: 600, color: '#073b4c' }}>{fund.schemeName.split(' - ')[0]}</div>
                             <div style={{ textAlign: 'right' }}>
-                              <div style={{ color: (typeof fund.return1yr === 'string' && fund.return1yr.startsWith('-')) ? '#d12c2c' : '#22a745', fontWeight: 700 }}>{fund.return1yr}</div>
+                              <div style={{ color: (typeof fund.return1yr === 'string' && fund.return1yr.startsWith('-')) ? '#d12c2c' : '#22a745', fontWeight: 700 }}>
+                                {fund.latestNav ? `₹${Number(fund.latestNav).toFixed(2)}` : fund.return1yr}
+                              </div>
                               <div style={{ fontSize: 12, color: '#777' }}>{fund.category}</div>
                             </div>
                           </div>
